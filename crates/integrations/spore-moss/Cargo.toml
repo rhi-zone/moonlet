@@ -9,5 +9,6 @@ repository.workspace = true
 [dependencies]
 rhizome-spore-lua.workspace = true
 rhizome-moss = { git = "https://github.com/rhizome-lab/moss" }
+rhizome-moss-languages = { git = "https://github.com/rhizome-lab/moss" }
 mlua.workspace = true
 serde_json.workspace = true
