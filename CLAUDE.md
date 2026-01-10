@@ -7,15 +7,19 @@ Behavioral rules for Claude Code in the spore repository.
 spore is an agentic AI framework spun out from moss. It provides:
 - Multi-provider LLM client (via rig-core)
 - SQLite-backed memory store
-- Session log parsing for various AI agents
 - Lua-based agent scripts
+
+**Key distinction:**
+- **spore** = agency/execution (LLM calls, memory, running agents)
+- **moss** = intelligence (code analysis, session parsing, understanding)
+
+The projects are intentionally not hard-linked. They can work independently or together via loose coupling.
 
 ## Architecture
 
 ```
 crates/
-├── spore-core/       # LLM client, memory store
-└── spore-sessions/   # Session log parsing
+└── spore-core/       # LLM client, memory store
 
 scripts/
 ├── agent.lua         # Main agent state machine
@@ -36,22 +40,9 @@ scripts/
 - `MemoryStore` - SQLite-backed key-value store with metadata
 - `MemoryItem` - Stored memory with content, context, weight, metadata
 
-### spore-sessions
-- `SessionAnalysis` - Aggregated metrics from agent sessions
-- `ToolStats` - Tool usage statistics
-- `TokenStats` - LLM token consumption metrics
-- `LogFormat` - Trait for log format plugins
-
 ## Supported LLM Providers
 
 Anthropic, OpenAI, Azure, Gemini, Cohere, DeepSeek, Groq, Mistral, Ollama, OpenRouter, Perplexity, Together, XAI
-
-## Session Log Formats
-
-- Claude Code (JSONL)
-- Gemini CLI (JSON)
-- Codex
-- Moss Agent (JSONL)
 
 ## Development
 
@@ -70,4 +61,3 @@ cargo clippy       # Lint
 
 - Crate names: `spore-{name}`
 - Memory stored in `.spore/` directory
-- Session logs parsed from various agent-specific locations

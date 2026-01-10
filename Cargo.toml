@@ -11,7 +11,6 @@ repository = "https://github.com/rhizome-lab/spore"
 [workspace.dependencies]
 # Internal crates
 spore-core = { path = "crates/spore-core" }
-spore-sessions = { path = "crates/spore-sessions" }
 
 # External dependencies
 thiserror = "2"

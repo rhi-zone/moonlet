@@ -6,7 +6,6 @@ Agentic AI framework with Lua scripting - spun out from [moss](https://github.co
 
 - **Multi-provider LLM client** - Anthropic, OpenAI, Gemini, Cohere, Groq, Mistral, and more via `rig-core`
 - **Memory store** - SQLite-backed persistent context with metadata queries
-- **Session parsing** - Analyze logs from Claude Code, Gemini CLI, Codex, and moss agents
 - **Agent scripts** - Lua-based agent implementation with state machine orchestration
 
 ## Crates
@@ -14,7 +13,6 @@ Agentic AI framework with Lua scripting - spun out from [moss](https://github.co
 | Crate | Description |
 |-------|-------------|
 | `spore-core` | LLM client and memory store infrastructure |
-| `spore-sessions` | Session log parsing for AI coding agents |
 
 ## Quick Start
 

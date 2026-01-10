@@ -1,6 +1,13 @@
 # Introduction
 
-**spore** is an agentic AI framework spun out from [moss](https://github.com/rhizome-lab/moss). It provides the infrastructure for building AI coding agents.
+**spore** is an agentic AI framework spun out from [moss](https://github.com/rhizome-lab/moss). It provides the infrastructure for building and running AI agents.
+
+## Philosophy
+
+- **spore** = agency/execution (LLM calls, memory, running agents)
+- **moss** = intelligence (code analysis, session parsing, understanding)
+
+The projects are intentionally not hard-linked. Moss can optionally extend spore via a plugin architecture.
 
 ## Components
 
@@ -16,21 +23,6 @@ Core infrastructure for AI agents:
   - Metadata-based queries
   - Weight-based relevance
 
-### spore-sessions
-
-Session log parsing for various AI coding agents:
-
-- Claude Code (JSONL)
-- Gemini CLI (JSON)
-- Codex
-- Moss Agent (JSONL)
-
-Provides unified `SessionAnalysis` with:
-- Tool usage statistics
-- Token consumption metrics
-- Error pattern analysis
-- File access tracking
-
 ### Agent Scripts
 
 Lua-based agent implementation:
@@ -39,6 +31,10 @@ Lua-based agent implementation:
 - Risk assessment for proposed changes
 - Checkpoint/resume support
 - Loop detection
+
+### Plugin Architecture (planned)
+
+Spore's Lua runtime can be extended via dynamic libraries. For example, moss could add code intelligence commands (view, analyze, grep) to the agent's toolkit.
 
 ## Quick Example
 
@@ -63,5 +59,4 @@ Add to your `Cargo.toml`:
 ```toml
 [dependencies]
 spore-core = { git = "https://github.com/rhizome-lab/spore" }
-spore-sessions = { git = "https://github.com/rhizome-lab/spore" }
 ```
