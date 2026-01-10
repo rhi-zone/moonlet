@@ -1,0 +1,26 @@
+[workspace]
+resolver = "2"
+members = ["crates/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/rhizome-lab/spore"
+
+[workspace.dependencies]
+# Internal crates
+spore-core = { path = "crates/spore-core" }
+spore-sessions = { path = "crates/spore-sessions" }
+
+# External dependencies
+thiserror = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+regex = "1"
+tokio = { version = "1", features = ["full"] }
+reqwest = { version = "0.12", features = ["rustls-tls", "json"] }
+rusqlite = { version = "0.32", features = ["bundled"] }
+mlua = { version = "0.10", features = ["luajit", "vendored", "serialize", "send"] }
+rig-core = "0.11"
+dotenvy = "0.15"

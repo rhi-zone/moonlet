@@ -1,0 +1,20 @@
+[package]
+name = "spore-core"
+description = "Core agentic AI infrastructure: LLM client, memory store"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[features]
+default = ["llm"]
+llm = ["dep:rig-core", "dep:reqwest"]
+
+[dependencies]
+thiserror.workspace = true
+rusqlite.workspace = true
+dotenvy.workspace = true
+
+# LLM support (optional)
+rig-core = { workspace = true, optional = true }
+reqwest = { workspace = true, optional = true }
