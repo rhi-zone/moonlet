@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/*"]
+members = ["crates/spore-core", "crates/spore-lua", "crates/integrations/*"]
 
 [workspace.package]
 version = "0.1.0"
@@ -10,7 +10,9 @@ repository = "https://github.com/rhizome-lab/spore"
 
 [workspace.dependencies]
 # Internal crates
-spore-core = { path = "crates/spore-core" }
+rhizome-spore-core = { path = "crates/spore-core" }
+rhizome-spore-lua = { path = "crates/spore-lua" }
+rhizome-spore-moss = { path = "crates/integrations/spore-moss" }
 
 # External dependencies
 thiserror = "2"
@@ -21,5 +23,5 @@ tokio = { version = "1", features = ["full"] }
 reqwest = { version = "0.12", features = ["rustls-tls", "json"] }
 rusqlite = { version = "0.32", features = ["bundled"] }
 mlua = { version = "0.10", features = ["luajit", "vendored", "serialize", "send"] }
-rig-core = "0.11"
+rig-core = "0.27"
 dotenvy = "0.15"

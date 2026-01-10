@@ -24,6 +24,9 @@
             # Fast linker for incremental builds
             mold
             clang
+            # System deps
+            openssl
+            pkg-config
             # JS tooling for docs
             bun
           ];
