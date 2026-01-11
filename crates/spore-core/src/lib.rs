@@ -1,8 +1,7 @@
-//! spore-core: Agentic AI infrastructure.
+//! spore-core: Core runtime infrastructure.
 //!
-//! This crate provides core building blocks for AI agents:
-//! - Multi-provider LLM client (Anthropic, OpenAI, Gemini, etc.)
-//! - SQLite-backed memory store for context persistence
+//! Shared infrastructure for spore integrations.
+//! LLM functionality is behind the `llm` feature flag (to be moved to spore-llm).
 
 #[cfg(feature = "llm")]
 pub mod llm;
