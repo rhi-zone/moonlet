@@ -7,8 +7,8 @@
 
 ## Integrations
 
-- [ ] `spore-libsql` - Direct libsql/SQLite access from Lua (replaces spore-lotus)
-- [ ] Remove `spore-lotus` once spore-libsql is ready
+- [ ] `spore-libsql` - Direct libsql/SQLite access from Lua
+- [ ] `spore-reed` - S-expression parsing/codegen (deferred: unclear value with single frontend/backend)
 
 ## spore-moss integration
 

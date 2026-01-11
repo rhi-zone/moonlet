@@ -13,7 +13,6 @@ repository = "https://github.com/rhizome-lab/spore"
 rhizome-spore-core = { path = "crates/spore-core" }
 rhizome-spore-lua = { path = "crates/spore-lua" }
 rhizome-spore-moss = { path = "crates/integrations/spore-moss" }
-rhizome-spore-lotus = { path = "crates/integrations/spore-lotus" }
 rhizome-spore-llm = { path = "crates/integrations/spore-llm" }
 
 # External dependencies
