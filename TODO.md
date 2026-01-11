@@ -1,5 +1,8 @@
 # TODO
 
+## Complexity Hotspots (threshold >21)
+- [ ] `crates/integrations/spore-lotus/src/lib.rs:register_call` (24)
+
 ## spore-moss integration
 
 ### Not yet implemented
