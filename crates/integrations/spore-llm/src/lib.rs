@@ -1,28 +1,32 @@
-//! LLM client for workflow engine.
+//! rhizome-spore-llm: LLM integration for spore agents.
 //!
-//! Supports all providers from rig: anthropic, openai, google, cohere, groq, etc.
+//! Registers LLM functions into the spore Lua runtime:
+//!
+//! ## Completion
+//! - `llm.complete(provider, model, system, prompt, opts)` - Single completion
+//! - `llm.chat(provider, model, system, prompt, history, opts)` - Chat with history
+//!
+//! ## Provider Info
+//! - `llm.providers()` - List available providers
+//! - `llm.provider_info(name)` - Get provider details
 
-#[cfg(feature = "llm")]
+use mlua::{Lua, Result, Table};
+use rhizome_spore_lua::Integration;
 use rig::{
     client::{CompletionClient, ProviderClient},
     completion::{Chat, Message},
     providers,
 };
 
-#[cfg(feature = "llm")]
-use reqwest;
-
-#[cfg(feature = "llm")]
-/// Check if SSL certificate validation should be bypassed
+/// Check if SSL certificate validation should be bypassed.
 fn should_bypass_ssl() -> bool {
     std::env::var("SPORE_INSECURE_SSL")
         .map(|v| v == "1" || v.to_lowercase() == "true")
         .unwrap_or(false)
 }
 
-#[cfg(feature = "llm")]
-/// Create a reqwest client, optionally with SSL verification disabled
-fn create_http_client() -> Result<reqwest::Client, String> {
+/// Create a reqwest client, optionally with SSL verification disabled.
+fn create_http_client() -> std::result::Result<reqwest::Client, String> {
     let mut builder = reqwest::Client::builder();
 
     if should_bypass_ssl() {
@@ -36,7 +40,6 @@ fn create_http_client() -> Result<reqwest::Client, String> {
 }
 
 /// Supported LLM providers.
-#[cfg(feature = "llm")]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Provider {
     Anthropic,
@@ -54,7 +57,6 @@ pub enum Provider {
     XAI,
 }
 
-#[cfg(feature = "llm")]
 impl Provider {
     /// Parse provider from string.
     pub fn from_str(s: &str) -> Option<Self> {
@@ -132,26 +134,43 @@ impl Provider {
             Self::XAI,
         ]
     }
+
+    /// Get provider name as lowercase string.
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::Anthropic => "anthropic",
+            Self::OpenAI => "openai",
+            Self::Azure => "azure",
+            Self::Gemini => "gemini",
+            Self::Cohere => "cohere",
+            Self::DeepSeek => "deepseek",
+            Self::Groq => "groq",
+            Self::Mistral => "mistral",
+            Self::Ollama => "ollama",
+            Self::OpenRouter => "openrouter",
+            Self::Perplexity => "perplexity",
+            Self::Together => "together",
+            Self::XAI => "xai",
+        }
+    }
 }
 
 /// LLM client.
-#[cfg(feature = "llm")]
 pub struct LlmClient {
     provider: Provider,
     model: String,
 }
 
-#[cfg(feature = "llm")]
 impl LlmClient {
     /// Create a new LLM client.
-    pub fn new(provider_str: &str, model: Option<&str>) -> Result<Self, String> {
+    pub fn new(provider_str: &str, model: Option<&str>) -> std::result::Result<Self, String> {
         let provider = Provider::from_str(provider_str).ok_or_else(|| {
             format!(
                 "Unsupported provider: {}. Available: {}",
                 provider_str,
                 Provider::all()
                     .iter()
-                    .map(|p| format!("{:?}", p).to_lowercase())
+                    .map(|p| p.name())
                     .collect::<Vec<_>>()
                     .join(", ")
             )
@@ -179,7 +198,7 @@ impl LlmClient {
         system: Option<&str>,
         prompt: &str,
         max_tokens: Option<usize>,
-    ) -> Result<String, String> {
+    ) -> std::result::Result<String, String> {
         let rt = tokio::runtime::Runtime::new()
             .map_err(|e| format!("Failed to create runtime: {}", e))?;
         rt.block_on(self.complete_async(system, prompt, max_tokens.unwrap_or(8192)))
@@ -190,7 +209,7 @@ impl LlmClient {
         system: Option<&str>,
         prompt: &str,
         max_tokens: usize,
-    ) -> Result<String, String> {
+    ) -> std::result::Result<String, String> {
         self.chat_async(system, prompt, Vec::new(), max_tokens)
             .await
     }
@@ -202,7 +221,7 @@ impl LlmClient {
         prompt: &str,
         history: Vec<(String, String)>, // (role, content) pairs
         max_tokens: Option<usize>,
-    ) -> Result<String, String> {
+    ) -> std::result::Result<String, String> {
         let rt = tokio::runtime::Runtime::new()
             .map_err(|e| format!("Failed to create runtime: {}", e))?;
         rt.block_on(self.chat_async(system, prompt, history, max_tokens.unwrap_or(8192)))
@@ -214,7 +233,7 @@ impl LlmClient {
         prompt: &str,
         history: Vec<(String, String)>,
         max_tokens: usize,
-    ) -> Result<String, String> {
+    ) -> std::result::Result<String, String> {
         // Convert history to rig Messages
         let messages: Vec<Message> = history
             .into_iter()
@@ -304,11 +323,137 @@ impl LlmClient {
     }
 }
 
+/// LLM integration for spore Lua runtime.
+pub struct LlmIntegration;
+
+impl LlmIntegration {
+    /// Create a new LLM integration.
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+impl Default for LlmIntegration {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Integration for LlmIntegration {
+    fn register(&self, lua: &Lua) -> Result<()> {
+        let llm = lua.create_table()?;
+
+        register_complete(&llm, lua)?;
+        register_chat(&llm, lua)?;
+        register_providers(&llm, lua)?;
+        register_provider_info(&llm, lua)?;
+
+        lua.globals().set("llm", llm)?;
+        Ok(())
+    }
+}
+
+fn register_complete(llm: &Table, lua: &Lua) -> Result<()> {
+    llm.set(
+        "complete",
+        lua.create_function(
+            |_lua, args: (String, Option<String>, Option<String>, String, Option<Table>)| {
+                let (provider, model, system, prompt, opts) = args;
+
+                let max_tokens = opts
+                    .as_ref()
+                    .and_then(|t| t.get::<u64>("max_tokens").ok())
+                    .map(|n| n as usize);
+
+                let client = LlmClient::new(&provider, model.as_deref())
+                    .map_err(mlua::Error::external)?;
+
+                let response = client
+                    .complete(system.as_deref(), &prompt, max_tokens)
+                    .map_err(mlua::Error::external)?;
+
+                Ok(response)
+            },
+        )?,
+    )?;
+    Ok(())
+}
+
+fn register_chat(llm: &Table, lua: &Lua) -> Result<()> {
+    llm.set(
+        "chat",
+        lua.create_function(
+            |_lua,
+             args: (
+                String,
+                Option<String>,
+                Option<String>,
+                String,
+                Table,
+                Option<Table>,
+            )| {
+                let (provider, model, system, prompt, history_table, opts) = args;
+
+                // Convert Lua history table to Vec<(String, String)>
+                let mut history = Vec::new();
+                for pair in history_table.pairs::<i64, Table>() {
+                    let (_, msg) = pair?;
+                    let role: String = msg.get("role")?;
+                    let content: String = msg.get("content")?;
+                    history.push((role, content));
+                }
+
+                let max_tokens = opts
+                    .as_ref()
+                    .and_then(|t| t.get::<u64>("max_tokens").ok())
+                    .map(|n| n as usize);
+
+                let client = LlmClient::new(&provider, model.as_deref())
+                    .map_err(mlua::Error::external)?;
+
+                let response = client
+                    .chat(system.as_deref(), &prompt, history, max_tokens)
+                    .map_err(mlua::Error::external)?;
+
+                Ok(response)
+            },
+        )?,
+    )?;
+    Ok(())
+}
+
+fn register_providers(llm: &Table, lua: &Lua) -> Result<()> {
+    llm.set(
+        "providers",
+        lua.create_function(|lua, ()| {
+            let providers: Vec<String> = Provider::all().iter().map(|p| p.name().to_string()).collect();
+            lua.create_sequence_from(providers)
+        })?,
+    )?;
+    Ok(())
+}
+
+fn register_provider_info(llm: &Table, lua: &Lua) -> Result<()> {
+    llm.set(
+        "provider_info",
+        lua.create_function(|lua, name: String| {
+            let provider = Provider::from_str(&name)
+                .ok_or_else(|| mlua::Error::external(format!("Unknown provider: {}", name)))?;
+
+            let info = lua.create_table()?;
+            info.set("name", provider.name())?;
+            info.set("default_model", provider.default_model())?;
+            info.set("env_var", provider.env_var())?;
+            Ok(info)
+        })?,
+    )?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    #[cfg(feature = "llm")]
     #[test]
     fn test_provider_parsing() {
         assert_eq!(Provider::from_str("anthropic"), Some(Provider::Anthropic));
@@ -322,12 +467,12 @@ mod tests {
         assert_eq!(Provider::from_str("unknown"), None);
     }
 
-    #[cfg(feature = "llm")]
     #[test]
     fn test_all_providers_have_defaults() {
         for provider in Provider::all() {
             assert!(!provider.default_model().is_empty());
             assert!(!provider.env_var().is_empty());
+            assert!(!provider.name().is_empty());
         }
     }
 }

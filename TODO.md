@@ -2,11 +2,13 @@
 
 ## Architecture
 
-- [ ] Move LLM client from spore-core to spore-llm integration
-- [ ] spore-core should be minimal (just runtime infrastructure)
+- [x] Move LLM client from spore-core to spore-llm integration
+- [x] spore-core should be minimal (just runtime infrastructure)
 
-## Complexity Hotspots (threshold >21)
-- [ ] `crates/integrations/spore-lotus/src/lib.rs:register_call` (24)
+## Integrations
+
+- [ ] `spore-libsql` - Direct libsql/SQLite access from Lua (replaces spore-lotus)
+- [ ] Remove `spore-lotus` once spore-libsql is ready
 
 ## spore-moss integration
 

@@ -20,9 +20,10 @@ The projects are intentionally not hard-linked. Moss can extend spore via the In
 
 ```
 crates/
-├── spore-core/           # LLM client, memory store
+├── spore-core/           # Memory store
 ├── spore-lua/            # Lua runtime, Integration trait
 └── integrations/
+    ├── spore-llm/        # LLM client integration
     └── spore-moss/       # Moss code intelligence integration
 
 scripts/
@@ -39,14 +40,17 @@ scripts/
 ## Key Types
 
 ### spore-core
-- `Provider` - LLM provider enum (Anthropic, OpenAI, Gemini, etc.)
-- `LlmClient` - Multi-provider LLM client with complete/chat methods
 - `MemoryStore` - SQLite-backed key-value store with metadata
 - `MemoryItem` - Stored memory with content, context, weight, metadata
 
 ### spore-lua
 - `Runtime` - Lua execution environment
 - `Integration` - Trait for registering plugin modules into Lua
+
+### spore-llm
+- `Provider` - LLM provider enum (Anthropic, OpenAI, Gemini, etc.)
+- `LlmClient` - Multi-provider LLM client with complete/chat methods
+- `LlmIntegration` - Registers llm.complete, llm.chat, llm.providers, llm.provider_info
 
 ### spore-moss
 - `MossIntegration` - Registers moss.view, moss.edit, moss.analyze.*, moss.search

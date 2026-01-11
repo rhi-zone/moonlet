@@ -8,10 +8,10 @@ repository.workspace = true
 
 [dependencies]
 rhizome-spore-lua.workspace = true
-rhizome-lotus-core = { path = "../../../../lotus/crates/lotus-core" }
-rhizome-lotus-ir = { path = "../../../../lotus/crates/lotus-ir" }
-rhizome-reed-sexpr = { path = "../../../../reed/crates/reed-sexpr" }
-rhizome-reed-write-lua = { path = "../../../../reed/crates/writers/reed-write-lua" }
+rhizome-lotus-core = { git = "https://github.com/rhizome-lab/lotus" }
+rhizome-lotus-ir = { git = "https://github.com/rhizome-lab/lotus" }
+rhizome-reed-sexpr = { git = "https://github.com/rhizome-lab/reed" }
+rhizome-reed-write-lua = { git = "https://github.com/rhizome-lab/reed" }
 mlua.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
