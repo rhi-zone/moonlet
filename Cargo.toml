@@ -29,3 +29,4 @@ rig-core = "0.27"
 dotenvy = "0.15"
 clap = { version = "4", features = ["derive"] }
 toml = "0.8"
+schemars = "0.8"

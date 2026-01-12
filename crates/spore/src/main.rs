@@ -4,6 +4,7 @@ use clap::{Parser, Subcommand};
 use rhizome_spore_llm::LlmIntegration;
 use rhizome_spore_lua::Runtime;
 use rhizome_spore_moss::MossIntegration;
+use schemars::JsonSchema;
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
 
@@ -35,19 +36,19 @@ enum Commands {
     },
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, JsonSchema)]
 struct Config {
     project: ProjectConfig,
     #[serde(default)]
     integrations: IntegrationsConfig,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, JsonSchema)]
 struct ProjectConfig {
     entry: String,
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Default, Deserialize, JsonSchema)]
 struct IntegrationsConfig {
     #[serde(default)]
     llm: bool,
@@ -55,7 +56,28 @@ struct IntegrationsConfig {
     moss: bool,
 }
 
+/// Handle --schema flag for Nursery integration.
+fn handle_schema_flag() -> bool {
+    let args: Vec<String> = std::env::args().collect();
+    if args.get(1).map(|s| s.as_str()) == Some("--schema") {
+        let response = serde_json::json!({
+            "config_path": ".spore/config.toml",
+            "format": "toml",
+            "schema": schemars::schema_for!(Config)
+        });
+        println!("{}", serde_json::to_string_pretty(&response).unwrap());
+        true
+    } else {
+        false
+    }
+}
+
 fn main() {
+    // Handle --schema for Nursery integration (before clap parsing)
+    if handle_schema_flag() {
+        return;
+    }
+
     let cli = Cli::parse();
 
     match cli.command {
