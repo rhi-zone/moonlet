@@ -16,7 +16,12 @@
           pname = "spore";
           version = "0.1.0";
           src = ./.;
-          cargoLock.lockFile = ./Cargo.lock;
+          cargoLock = {
+            lockFile = ./Cargo.lock;
+            outputHashes = {
+              "rhizome-moss-0.1.0" = "sha256-umRS8ueaN1c25f8vhqDok0FbfgLErEmq2CP8PBxIiz4=";
+            };
+          };
           nativeBuildInputs = with pkgs; [ pkg-config ];
           buildInputs = with pkgs; [ openssl ];
         };
