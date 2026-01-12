@@ -39,8 +39,7 @@ impl Runtime {
 
     /// Run a Lua script from a file.
     pub fn run_file(&self, path: &std::path::Path) -> Result<()> {
-        let code = std::fs::read_to_string(path)
-            .map_err(|e| mlua::Error::external(e))?;
+        let code = std::fs::read_to_string(path).map_err(mlua::Error::external)?;
         self.run(&code)
     }
 

@@ -59,7 +59,7 @@ pub enum Provider {
 
 impl Provider {
     /// Parse provider from string.
-    pub fn from_str(s: &str) -> Option<Self> {
+    pub fn parse(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "anthropic" | "claude" => Some(Self::Anthropic),
             "openai" | "gpt" | "chatgpt" => Some(Self::OpenAI),
@@ -164,7 +164,7 @@ pub struct LlmClient {
 impl LlmClient {
     /// Create a new LLM client.
     pub fn new(provider_str: &str, model: Option<&str>) -> std::result::Result<Self, String> {
-        let provider = Provider::from_str(provider_str).ok_or_else(|| {
+        let provider = Provider::parse(provider_str).ok_or_else(|| {
             format!(
                 "Unsupported provider: {}. Available: {}",
                 provider_str,
@@ -357,7 +357,14 @@ fn register_complete(llm: &Table, lua: &Lua) -> Result<()> {
     llm.set(
         "complete",
         lua.create_function(
-            |_lua, args: (String, Option<String>, Option<String>, String, Option<Table>)| {
+            |_lua,
+             args: (
+                String,
+                Option<String>,
+                Option<String>,
+                String,
+                Option<Table>,
+            )| {
                 let (provider, model, system, prompt, opts) = args;
 
                 let max_tokens = opts
@@ -365,8 +372,8 @@ fn register_complete(llm: &Table, lua: &Lua) -> Result<()> {
                     .and_then(|t| t.get::<u64>("max_tokens").ok())
                     .map(|n| n as usize);
 
-                let client = LlmClient::new(&provider, model.as_deref())
-                    .map_err(mlua::Error::external)?;
+                let client =
+                    LlmClient::new(&provider, model.as_deref()).map_err(mlua::Error::external)?;
 
                 let response = client
                     .complete(system.as_deref(), &prompt, max_tokens)
@@ -408,8 +415,8 @@ fn register_chat(llm: &Table, lua: &Lua) -> Result<()> {
                     .and_then(|t| t.get::<u64>("max_tokens").ok())
                     .map(|n| n as usize);
 
-                let client = LlmClient::new(&provider, model.as_deref())
-                    .map_err(mlua::Error::external)?;
+                let client =
+                    LlmClient::new(&provider, model.as_deref()).map_err(mlua::Error::external)?;
 
                 let response = client
                     .chat(system.as_deref(), &prompt, history, max_tokens)
@@ -426,7 +433,10 @@ fn register_providers(llm: &Table, lua: &Lua) -> Result<()> {
     llm.set(
         "providers",
         lua.create_function(|lua, ()| {
-            let providers: Vec<String> = Provider::all().iter().map(|p| p.name().to_string()).collect();
+            let providers: Vec<String> = Provider::all()
+                .iter()
+                .map(|p| p.name().to_string())
+                .collect();
             lua.create_sequence_from(providers)
         })?,
     )?;
@@ -437,7 +447,7 @@ fn register_provider_info(llm: &Table, lua: &Lua) -> Result<()> {
     llm.set(
         "provider_info",
         lua.create_function(|lua, name: String| {
-            let provider = Provider::from_str(&name)
+            let provider = Provider::parse(&name)
                 .ok_or_else(|| mlua::Error::external(format!("Unknown provider: {}", name)))?;
 
             let info = lua.create_table()?;
@@ -456,15 +466,15 @@ mod tests {
 
     #[test]
     fn test_provider_parsing() {
-        assert_eq!(Provider::from_str("anthropic"), Some(Provider::Anthropic));
-        assert_eq!(Provider::from_str("claude"), Some(Provider::Anthropic));
-        assert_eq!(Provider::from_str("openai"), Some(Provider::OpenAI));
-        assert_eq!(Provider::from_str("gpt"), Some(Provider::OpenAI));
-        assert_eq!(Provider::from_str("google"), Some(Provider::Gemini));
-        assert_eq!(Provider::from_str("gemini"), Some(Provider::Gemini));
-        assert_eq!(Provider::from_str("groq"), Some(Provider::Groq));
-        assert_eq!(Provider::from_str("ollama"), Some(Provider::Ollama));
-        assert_eq!(Provider::from_str("unknown"), None);
+        assert_eq!(Provider::parse("anthropic"), Some(Provider::Anthropic));
+        assert_eq!(Provider::parse("claude"), Some(Provider::Anthropic));
+        assert_eq!(Provider::parse("openai"), Some(Provider::OpenAI));
+        assert_eq!(Provider::parse("gpt"), Some(Provider::OpenAI));
+        assert_eq!(Provider::parse("google"), Some(Provider::Gemini));
+        assert_eq!(Provider::parse("gemini"), Some(Provider::Gemini));
+        assert_eq!(Provider::parse("groq"), Some(Provider::Groq));
+        assert_eq!(Provider::parse("ollama"), Some(Provider::Ollama));
+        assert_eq!(Provider::parse("unknown"), None);
     }
 
     #[test]

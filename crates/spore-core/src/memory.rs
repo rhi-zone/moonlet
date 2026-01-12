@@ -5,7 +5,7 @@
 
 use std::path::Path;
 
-use libsql::{params, Connection, Database};
+use libsql::{Connection, Database, params};
 
 /// Convert a dot-notation key to a safe JSON path.
 /// SQLite uses $."key" for quoted keys, $.key1.key2 for nested.
@@ -75,14 +75,26 @@ impl MemoryStore {
                 created_at INTEGER DEFAULT (strftime('%s', 'now')),
                 accessed_at INTEGER DEFAULT (strftime('%s', 'now')),
                 metadata TEXT DEFAULT '{}'
-            )", ()).await?;
+            )",
+            (),
+        )
+        .await?;
 
         conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_memory_context ON memory(context)", ()).await?;
+            "CREATE INDEX IF NOT EXISTS idx_memory_context ON memory(context)",
+            (),
+        )
+        .await?;
         conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_memory_weight ON memory(weight DESC)", ()).await?;
+            "CREATE INDEX IF NOT EXISTS idx_memory_weight ON memory(weight DESC)",
+            (),
+        )
+        .await?;
         conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_memory_accessed ON memory(accessed_at DESC)", ()).await?;
+            "CREATE INDEX IF NOT EXISTS idx_memory_accessed ON memory(accessed_at DESC)",
+            (),
+        )
+        .await?;
 
         Ok(Self { conn, db })
     }
@@ -95,15 +107,17 @@ impl MemoryStore {
         weight: Option<f64>,
         metadata: Option<&str>,
     ) -> Result<i64, libsql::Error> {
-        self.conn.execute(
-            "INSERT INTO memory (content, context, weight, metadata) VALUES (?1, ?2, ?3, ?4)",
-            params![
-                content,
-                context,
-                weight.unwrap_or(1.0),
-                metadata.unwrap_or("{}")
-            ],
-        ).await?;
+        self.conn
+            .execute(
+                "INSERT INTO memory (content, context, weight, metadata) VALUES (?1, ?2, ?3, ?4)",
+                params![
+                    content,
+                    context,
+                    weight.unwrap_or(1.0),
+                    metadata.unwrap_or("{}")
+                ],
+            )
+            .await?;
         Ok(self.conn.last_insert_rowid())
     }
 
@@ -115,17 +129,24 @@ impl MemoryStore {
     /// - metadata keys (via JSON)
     ///
     /// Results ordered by weight DESC, accessed_at DESC.
-    pub async fn recall(&self, query: &str, limit: usize) -> Result<Vec<MemoryItem>, libsql::Error> {
+    pub async fn recall(
+        &self,
+        query: &str,
+        limit: usize,
+    ) -> Result<Vec<MemoryItem>, libsql::Error> {
         // Simple query: match content or context
         let pattern = format!("%{}%", query);
-        let mut rows = self.conn.query(
-            "SELECT id, content, context, weight, created_at, accessed_at, metadata
+        let mut rows = self
+            .conn
+            .query(
+                "SELECT id, content, context, weight, created_at, accessed_at, metadata
              FROM memory
              WHERE content LIKE ?1 OR context LIKE ?1 OR context = ?2
              ORDER BY weight DESC, accessed_at DESC
              LIMIT ?3",
-            params![pattern, query, limit as i64],
-        ).await?;
+                params![pattern, query, limit as i64],
+            )
+            .await?;
 
         let mut items = Vec::new();
         while let Some(row) = rows.next().await? {
@@ -142,10 +163,12 @@ impl MemoryStore {
 
         // Update accessed_at for returned items
         for item in &items {
-            self.conn.execute(
-                "UPDATE memory SET accessed_at = strftime('%s', 'now') WHERE id = ?1",
-                params![item.id],
-            ).await?;
+            self.conn
+                .execute(
+                    "UPDATE memory SET accessed_at = strftime('%s', 'now') WHERE id = ?1",
+                    params![item.id],
+                )
+                .await?;
         }
 
         Ok(items)
@@ -188,9 +211,24 @@ impl MemoryStore {
 
         // For simplicity, handle common cases
         let mut rows = match filters.len() {
-            1 => self.conn.query(&query, params![filters[0].1, limit as i64]).await?,
-            2 => self.conn.query(&query, params![filters[0].1, filters[1].1, limit as i64]).await?,
-            3 => self.conn.query(&query, params![filters[0].1, filters[1].1, filters[2].1, limit as i64]).await?,
+            1 => {
+                self.conn
+                    .query(&query, params![filters[0].1, limit as i64])
+                    .await?
+            }
+            2 => {
+                self.conn
+                    .query(&query, params![filters[0].1, filters[1].1, limit as i64])
+                    .await?
+            }
+            3 => {
+                self.conn
+                    .query(
+                        &query,
+                        params![filters[0].1, filters[1].1, filters[2].1, limit as i64],
+                    )
+                    .await?
+            }
             _ => return Ok(Vec::new()), // Limit to 3 filters for simplicity
         };
 
@@ -212,10 +250,13 @@ impl MemoryStore {
     /// Forget (delete) items matching a query.
     pub async fn forget(&self, query: &str) -> Result<usize, libsql::Error> {
         let pattern = format!("%{}%", query);
-        let count = self.conn.execute(
-            "DELETE FROM memory WHERE content LIKE ?1 OR context LIKE ?1 OR context = ?2",
-            params![pattern, query],
-        ).await?;
+        let count = self
+            .conn
+            .execute(
+                "DELETE FROM memory WHERE content LIKE ?1 OR context LIKE ?1 OR context = ?2",
+                params![pattern, query],
+            )
+            .await?;
         Ok(count as usize)
     }
 }
@@ -294,7 +335,10 @@ mod tests {
             .store("remember this", Some("ctx"), None, None)
             .await
             .unwrap();
-        store.store("forget this", Some("ctx"), None, None).await.unwrap();
+        store
+            .store("forget this", Some("ctx"), None, None)
+            .await
+            .unwrap();
 
         let count = store.forget("forget").await.unwrap();
         assert_eq!(count, 1);
@@ -318,7 +362,10 @@ mod tests {
             .await
             .unwrap();
 
-        let items = store.recall_by_metadata(&[("slot", "system")], 10).await.unwrap();
+        let items = store
+            .recall_by_metadata(&[("slot", "system")], 10)
+            .await
+            .unwrap();
         assert_eq!(items.len(), 1);
         assert!(items[0].content.contains("system prompt"));
     }

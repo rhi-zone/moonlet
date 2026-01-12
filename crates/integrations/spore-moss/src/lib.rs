@@ -128,10 +128,12 @@ fn register_search(moss: &Table, lua: &Lua, root: &Path) -> Result<()> {
             let (pattern, opts) = args;
 
             // Parse options
-            let limit = opts.as_ref()
+            let limit = opts
+                .as_ref()
                 .and_then(|t| t.get::<u32>("limit").ok())
                 .unwrap_or(100) as usize;
-            let ignore_case = opts.as_ref()
+            let ignore_case = opts
+                .as_ref()
                 .and_then(|t| t.get::<bool>("ignore_case").ok())
                 .unwrap_or(false);
 
