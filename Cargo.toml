@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/spore-core", "crates/spore-lua", "crates/integrations/*"]
+members = ["crates/spore", "crates/spore-core", "crates/spore-lua", "crates/integrations/*"]
 
 [workspace.package]
 version = "0.1.0"
@@ -10,6 +10,7 @@ repository = "https://github.com/rhizome-lab/spore"
 
 [workspace.dependencies]
 # Internal crates
+rhizome-spore = { path = "crates/spore" }
 rhizome-spore-core = { path = "crates/spore-core" }
 rhizome-spore-lua = { path = "crates/spore-lua" }
 rhizome-spore-moss = { path = "crates/integrations/spore-moss" }
@@ -26,3 +27,5 @@ libsql = "0.9"
 mlua = { version = "0.10", features = ["luajit", "vendored", "serialize", "send", "async"] }
 rig-core = "0.27"
 dotenvy = "0.15"
+clap = { version = "4", features = ["derive"] }
+toml = "0.8"
