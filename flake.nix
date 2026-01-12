@@ -12,6 +12,15 @@
         pkgs = nixpkgs.legacyPackages.${system};
       in
       {
+        packages.default = pkgs.rustPlatform.buildRustPackage {
+          pname = "spore";
+          version = "0.1.0";
+          src = ./.;
+          cargoLock.lockFile = ./Cargo.lock;
+          nativeBuildInputs = with pkgs; [ pkg-config ];
+          buildInputs = with pkgs; [ openssl ];
+        };
+
         devShells.default = pkgs.mkShell rec {
           buildInputs = with pkgs; [
             stdenv.cc.cc
