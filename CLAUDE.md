@@ -72,6 +72,16 @@ cargo clippy       # Lint
 - `SPORE_INSECURE_SSL` - Bypass SSL verification (for local proxies)
 - `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, etc. - Provider API keys
 
+## Behavioral Patterns
+
+From ecosystem-wide session analysis:
+
+- **Question scope early:** Before implementing, ask whether it belongs in this crate/module
+- **Check consistency:** Look at how similar things are done elsewhere in the codebase
+- **Implement fully:** No silent arbitrary caps, incomplete pagination, or unexposed trait methods
+- **Name for purpose:** Avoid names that describe one consumer
+- **Verify before stating:** Don't assert API behavior or codebase facts without checking
+
 ## Conventions
 
 - Crate names: `rhizome-spore-{name}`
