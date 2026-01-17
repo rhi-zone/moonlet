@@ -1,5 +1,25 @@
 # TODO
 
+## For Iris (flora)
+
+Iris needs these capabilities for agent-authored insights:
+
+- [ ] `spore-embed` - Embedding generation integration
+  - Providers: Gemini `text-embedding-004`, OpenAI `text-embedding-3-small`, ollama local models
+  - API: `embed.generate(provider, model, text)` -> float vector
+  - **Decision:** Separate crate from spore-llm. Rationale: embedding use cases (semantic search, clustering, RAG retrieval) are often distinct from chat/completion - users wanting embeddings don't necessarily want LLM inference support, and vice versa.
+
+- [ ] Vector similarity in memory store (or separate crate)
+  - Store embeddings alongside content
+  - Query by cosine similarity
+  - Options: extend spore-core memory, or new `spore-vec` crate with sqlite-vec
+
+- [x] `spore-moss-sessions` - Session parsing integration
+  - Wraps moss-sessions for Lua access
+  - API: `sessions.parse(path)` -> session data, `sessions.list()`, `sessions.formats()`, `sessions.detect(path)`
+  - Formats: Claude Code, Gemini CLI, Codex, Moss Agent
+  - Analysis is done in Lua (not Rust) - see `moss/docs/design/sessions-refactor.md`
+
 ## CLI
 
 - [x] `spore` crate - CLI binary that:
@@ -17,6 +37,13 @@
 
 - [ ] `spore-libsql` - Direct libsql/SQLite access from Lua
 - [ ] `spore-reed` - S-expression parsing/codegen (deferred: unclear value with single frontend/backend)
+
+## Distribution
+
+- [ ] Modular flake packaging
+  - Expose each integration as a separate flake output (cffi-based plugins can be built independently)
+  - Add `spore-full` package that depends on all integrations
+  - Consider: config attrset to select which modules to include in a custom build
 
 ## spore-moss integration
 

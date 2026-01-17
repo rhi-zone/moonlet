@@ -19,7 +19,7 @@
           cargoLock = {
             lockFile = ./Cargo.lock;
             outputHashes = {
-              "rhizome-moss-0.1.0" = "sha256-umRS8ueaN1c25f8vhqDok0FbfgLErEmq2CP8PBxIiz4=";
+              "rhizome-moss-0.1.0" = "sha256-SFE3cQy2WPd8RWrWoC5fxkzIRG/07qii3dBMtunBbRA=";
             };
           };
           nativeBuildInputs = with pkgs; [ pkg-config ];

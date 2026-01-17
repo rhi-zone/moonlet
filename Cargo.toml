@@ -14,6 +14,7 @@ rhizome-spore = { path = "crates/spore" }
 rhizome-spore-core = { path = "crates/spore-core" }
 rhizome-spore-lua = { path = "crates/spore-lua" }
 rhizome-spore-moss = { path = "crates/integrations/spore-moss" }
+rhizome-spore-moss-sessions = { path = "crates/integrations/spore-moss-sessions" }
 rhizome-spore-llm = { path = "crates/integrations/spore-llm" }
 
 # External dependencies
