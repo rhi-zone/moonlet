@@ -19,6 +19,10 @@ rhizome-spore-moss-tools = { path = "crates/integrations/spore-moss-tools" }
 rhizome-spore-moss-packages = { path = "crates/integrations/spore-moss-packages" }
 rhizome-spore-llm = { path = "crates/integrations/spore-llm" }
 
+# Pith interfaces
+rhizome-pith-io = { git = "https://github.com/rhizome-lab/pith" }
+rhizome-pith-filesystem = { git = "https://github.com/rhizome-lab/pith" }
+
 # External dependencies
 libloading = "0.8"
 thiserror = "2"

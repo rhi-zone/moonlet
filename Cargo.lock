@@ -2981,6 +2981,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "rhizome-pith-filesystem"
+version = "0.1.0"
+source = "git+https://github.com/rhizome-lab/pith#b5284d3784bb0b4a97d56f6af2329580acd8eaab"
+dependencies = [
+ "rhizome-pith-io",
+]
+
+[[package]]
+name = "rhizome-pith-io"
+version = "0.1.0"
+source = "git+https://github.com/rhizome-lab/pith#b5284d3784bb0b4a97d56f6af2329580acd8eaab"
+
+[[package]]
 name = "rhizome-spore"
 version = "0.1.0"
 dependencies = [
@@ -3015,6 +3028,8 @@ name = "rhizome-spore-fs"
 version = "0.1.0"
 dependencies = [
  "mlua",
+ "rhizome-pith-filesystem",
+ "rhizome-pith-io",
  "serde_json",
 ]
 
