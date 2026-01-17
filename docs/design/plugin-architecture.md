@@ -581,9 +581,14 @@ Scripts don't create capabilities - they receive them. The trusted host (spore r
 ```lua
 -- Host (trusted) creates capabilities before running script
 local caps = {
-    fs = fs.capability({ path = "/project", mode = "rw" }),
-    tmp = fs.capability({ path = "/tmp", mode = "rw" }),
-    ai = ai.capability({ provider = "anthropic", model = "claude-3-5-sonnet" }),
+    fs = {
+        project = fs.capability({ path = "/project", mode = "rw" }),
+        data = fs.capability({ path = "/data/datasets", mode = "r" }),
+        tmp = fs.capability({ path = "/tmp", mode = "rw" }),
+    },
+    ai = {
+        claude = ai.capability({ provider = "anthropic", model = "claude-3-5-sonnet" }),
+    },
 }
 
 -- Script is invoked with capabilities as arguments
@@ -594,11 +599,13 @@ runtime:call("agent.lua", caps)
 -- agent.lua (untrusted)
 local function main(caps)
     -- Can only use what was given
-    local content = caps.fs:read("src/main.rs")  -- OK, within /project
-    caps.fs:write("build/out.txt", content)      -- OK
+    local content = caps.fs.project:read("src/main.rs")  -- OK
+    caps.fs.project:write("build/out.txt", content)      -- OK
+    local data = caps.fs.data:read("training.csv")       -- OK (read-only)
 
     -- Cannot escalate
-    local root = fs.capability({ path = "/" })   -- ERROR: fs.capability not exposed
+    local root = fs.capability({ path = "/" })   -- ERROR: fs not in scope
+    caps.fs.data:write("x.txt", "y")             -- ERROR: data cap is read-only
 end
 return { main = main }
 ```
@@ -653,13 +660,18 @@ Host reads policy from config:
 ```toml
 # .spore/policy.toml
 
-[agent.caps]
-fs = { path = "${PROJECT_ROOT}", mode = "rw" }
+[agent.caps.fs]
+project = { path = "${PROJECT_ROOT}", mode = "rw" }
+data = { path = "/data/datasets", mode = "r" }
 tmp = { path = "/tmp/spore-${AGENT_ID}", mode = "rw" }
-ai = { provider = "anthropic", model = "claude-3-5-sonnet" }
+
+[agent.caps.ai]
+claude = { provider = "anthropic", model = "claude-3-5-sonnet" }
+gpt = { provider = "openai", model = "gpt-4o" }
 
 # Network disabled by default
-# net = { allow = ["api.anthropic.com"] }
+# [agent.caps.net]
+# api = { allow = ["api.anthropic.com", "api.openai.com"] }
 ```
 
 ```rust
@@ -676,51 +688,50 @@ fn create_caps_from_policy(runtime: &Runtime, policy: &Policy) -> HashMap<String
 }
 ```
 
-**3. Capability attenuation (optional)**
+**3. Capability attenuation (plugin-implemented)**
 
-Scripts can create restricted sub-capabilities from what they're given:
+Plugins implement attenuation as a method on the capability userdata. No host involvement - pure plugin logic:
 
 ```lua
 local function main(caps)
-    -- Can attenuate (reduce permissions)
-    local readonly_fs = caps.fs:attenuate({ mode = "r" })
+    -- Attenuate: create restricted sub-capability
+    local readonly = caps.fs.project:attenuate({ mode = "r" })
+    local subdir = caps.fs.project:attenuate({ path = "src/", mode = "r" })
 
     -- Pass reduced capability to untrusted submodule
-    local result = untrusted_module.process(readonly_fs)
+    untrusted_analyzer.run(subdir)
 end
 ```
 
-Attenuation rules:
-- Can only reduce, never expand
-- New path must be within original path
-- New mode must be subset of original mode
+Plugin implementation:
 
 ```rust
-// In plugin implementation
+// Plugin adds "attenuate" to its method list
 unsafe extern "C" fn fs_attenuate(L: *mut lua_State) -> c_int {
-    let orig_params = get_capability_params(L, 1)?;
-    let new_params = get_table_arg(L, 2)?;
+    let orig = get_capability_params(L, 1)?;  // self
+    let restrictions = get_table_arg(L, 2)?;
 
-    // Validate attenuation is reduction only
-    let new_path = new_params["path"].as_str();
-    let orig_path = orig_params["path"].as_str().unwrap();
-
-    if let Some(p) = new_path {
-        let new_canonical = canonicalize(p)?;
-        let orig_canonical = canonicalize(orig_path)?;
-        if !new_canonical.starts_with(&orig_canonical) {
-            return lua_push_error(L, "cannot expand capability path");
+    // Validate: can only narrow, never expand
+    if let Some(new_path) = restrictions["path"].as_str() {
+        let orig_path = orig["path"].as_str().unwrap();
+        let new_abs = Path::new(orig_path).join(new_path).canonicalize()?;
+        let orig_abs = Path::new(orig_path).canonicalize()?;
+        if !new_abs.starts_with(&orig_abs) {
+            return lua_push_error(L, "path escapes capability root");
         }
     }
 
-    let new_mode = new_params["mode"].as_str().unwrap_or("r");
-    let orig_mode = orig_params["mode"].as_str().unwrap_or("r");
-    if !is_mode_subset(new_mode, orig_mode) {
-        return lua_push_error(L, "cannot expand capability mode");
+    if let Some(new_mode) = restrictions["mode"].as_str() {
+        let orig_mode = orig["mode"].as_str().unwrap_or("r");
+        if !is_mode_subset(new_mode, orig_mode) {
+            return lua_push_error(L, "cannot expand mode");
+        }
     }
 
-    // Create new capability with merged (attenuated) params
-    create_capability_userdata(L, merge_params(orig_params, new_params))
+    // Create NEW capability with merged params (original unchanged)
+    let merged = merge_params(&orig, &restrictions);
+    push_capability_userdata(L, merged);
+    1
 }
 ```
 
