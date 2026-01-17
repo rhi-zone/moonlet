@@ -147,30 +147,36 @@ Benefits:
 
 ## Plugin C ABI
 
+Plugins are standard Lua C modules. The only spore-specific addition is optional metadata for version checking.
+
 ```c
 #include <lua.h>
 
-// Plugin metadata
+// Optional: plugin metadata for version/compat checking before luaopen_*
 typedef struct {
     const char* name;           // "fs", "ai", "moss"
     const char* version;        // "0.1.0"
-    const char* description;    // human-readable
     uint32_t abi_version;       // for compatibility check
 } SporePluginInfo;
 
-// Method definition
-typedef struct {
-    const char* name;           // "read", "write", "chat"
-    lua_CFunction func;         // the C function pointer
-} SporeMethod;
-
-// Required exports
+// Optional export - host can check before loading
 SporePluginInfo spore_plugin_info(void);
-const SporeMethod* spore_plugin_methods(void);  // null-terminated
 
-// Optional exports
-int spore_validate_params(lua_State* L, int params_idx);  // validate on capability creation
-int spore_capability_gc(lua_State* L);                    // cleanup on GC
+// Required: standard Lua C module entry point
+// Returns module table with capability() constructor and utilities
+int luaopen_spore_fs(lua_State* L);
+```
+
+Plugins define their own userdata types internally with their own metatables:
+
+```
+luaopen_spore_fs(L)
+  └─► returns module table
+        ├─► capability(params) → creates FsCapability userdata
+        │     └─► metatable: read, write, list, open, attenuate, ...
+        │           └─► open() → creates FsFile userdata
+        │                 └─► metatable: read, write, seek, close, ...
+        └─► utility functions (exists, join, etc.)
 ```
 
 ## Rust Plugin Implementation
@@ -179,52 +185,79 @@ int spore_capability_gc(lua_State* L);                    // cleanup on GC
 // crates/plugins/spore-fs/src/lib.rs
 
 use std::ffi::c_int;
-use std::os::raw::c_char;
-
-// Re-export lua types (from mlua::ffi or luajit-sys)
-use mlua::ffi::{self as lua, lua_State};
-
-#[repr(C)]
-pub struct SporePluginInfo {
-    pub name: *const c_char,
-    pub version: *const c_char,
-    pub description: *const c_char,
-    pub abi_version: u32,
-}
-
-#[repr(C)]
-pub struct SporeMethod {
-    pub name: *const c_char,
-    pub func: Option<unsafe extern "C" fn(*mut lua_State) -> c_int>,
-}
+use mlua::ffi::{self as lua, lua_State, luaL_Reg};
 
 const ABI_VERSION: u32 = 1;
 
+// Optional: metadata export
 #[no_mangle]
 pub extern "C" fn spore_plugin_info() -> SporePluginInfo {
     SporePluginInfo {
         name: c"fs".as_ptr(),
         version: c"0.1.0".as_ptr(),
-        description: c"Filesystem operations with capability-based security".as_ptr(),
         abi_version: ABI_VERSION,
     }
 }
 
+// Required: standard Lua C module entry point
 #[no_mangle]
-pub static SPORE_METHODS: [SporeMethod; 5] = [
-    SporeMethod { name: c"read".as_ptr(), func: Some(fs_read) },
-    SporeMethod { name: c"write".as_ptr(), func: Some(fs_write) },
-    SporeMethod { name: c"list".as_ptr(), func: Some(fs_list) },
-    SporeMethod { name: c"exists".as_ptr(), func: Some(fs_exists) },
-    SporeMethod { name: std::ptr::null(), func: None },  // terminator
-];
+pub unsafe extern "C" fn luaopen_spore_fs(L: *mut lua_State) -> c_int {
+    // Register capability metatable
+    register_capability_metatable(L);
+    register_file_metatable(L);
 
-#[no_mangle]
-pub extern "C" fn spore_plugin_methods() -> *const SporeMethod {
-    SPORE_METHODS.as_ptr()
+    // Create module table
+    lua::lua_newtable(L);
+
+    // Add capability constructor
+    lua::lua_pushcfunction(L, Some(fs_capability));
+    lua::lua_setfield(L, -2, c"capability".as_ptr());
+
+    // Add utility functions
+    lua::lua_pushcfunction(L, Some(fs_exists));
+    lua::lua_setfield(L, -2, c"exists".as_ptr());
+
+    1  // return module table
 }
 
-// Helper: get params JSON from capability userdata at index 1
+// Capability metatable methods
+static CAP_METHODS: &[luaL_Reg] = &[
+    luaL_Reg { name: c"read".as_ptr(), func: Some(fs_cap_read) },
+    luaL_Reg { name: c"write".as_ptr(), func: Some(fs_cap_write) },
+    luaL_Reg { name: c"open".as_ptr(), func: Some(fs_cap_open) },
+    luaL_Reg { name: c"list".as_ptr(), func: Some(fs_cap_list) },
+    luaL_Reg { name: c"attenuate".as_ptr(), func: Some(fs_cap_attenuate) },
+    luaL_Reg { name: std::ptr::null(), func: None },
+];
+
+// File handle metatable methods
+static FILE_METHODS: &[luaL_Reg] = &[
+    luaL_Reg { name: c"read".as_ptr(), func: Some(fs_file_read) },
+    luaL_Reg { name: c"write".as_ptr(), func: Some(fs_file_write) },
+    luaL_Reg { name: c"seek".as_ptr(), func: Some(fs_file_seek) },
+    luaL_Reg { name: c"close".as_ptr(), func: Some(fs_file_close) },
+    luaL_Reg { name: std::ptr::null(), func: None },
+];
+
+unsafe fn register_capability_metatable(L: *mut lua_State) {
+    luaL_newmetatable(L, c"spore.fs.Capability".as_ptr());
+    lua::lua_newtable(L);  // __index table
+    luaL_setfuncs(L, CAP_METHODS.as_ptr(), 0);
+    lua::lua_setfield(L, -2, c"__index".as_ptr());
+    lua::lua_pushcfunction(L, Some(fs_cap_gc));
+    lua::lua_setfield(L, -2, c"__gc".as_ptr());
+    lua::lua_pop(L, 1);
+}
+
+// fs.capability({ path = "/tmp", mode = "rw" }) -> FsCapability userdata
+unsafe extern "C" fn fs_capability(L: *mut lua_State) -> c_int {
+    // Validate params table at index 1
+    // Create userdata, store params as user value, set metatable
+    // ...
+    1
+}
+
+// Helper: get params from capability userdata at index 1
 unsafe fn get_capability_params(L: *mut lua_State) -> Result<serde_json::Value, String> {
     // Get user value from userdata at index 1
     lua::lua_getuservalue(L, 1);
@@ -706,8 +739,9 @@ end
 Plugin implementation:
 
 ```rust
-// Plugin adds "attenuate" to its method list
-unsafe extern "C" fn fs_attenuate(L: *mut lua_State) -> c_int {
+// "attenuate" is a method on the capability userdata's metatable
+// (plugins can define multiple userdata types, each with own metatable)
+unsafe extern "C" fn fs_cap_attenuate(L: *mut lua_State) -> c_int {
     let orig = get_capability_params(L, 1)?;  // self
     let restrictions = get_table_arg(L, 2)?;
 
