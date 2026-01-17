@@ -2957,6 +2957,9 @@ dependencies = [
  "rhizome-spore-llm",
  "rhizome-spore-lua",
  "rhizome-spore-moss",
+ "rhizome-spore-moss-packages",
+ "rhizome-spore-moss-sessions",
+ "rhizome-spore-moss-tools",
  "schemars 0.8.22",
  "serde",
  "serde_json",
@@ -3010,11 +3013,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "rhizome-spore-moss-packages"
+version = "0.1.0"
+dependencies = [
+ "mlua",
+ "rhizome-moss-packages",
+ "rhizome-spore-lua",
+ "serde_json",
+]
+
+[[package]]
 name = "rhizome-spore-moss-sessions"
 version = "0.1.0"
 dependencies = [
  "mlua",
  "rhizome-moss-sessions",
+ "rhizome-spore-lua",
+ "serde_json",
+]
+
+[[package]]
+name = "rhizome-spore-moss-tools"
+version = "0.1.0"
+dependencies = [
+ "mlua",
+ "rhizome-moss-tools",
  "rhizome-spore-lua",
  "serde_json",
 ]

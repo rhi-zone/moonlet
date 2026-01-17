@@ -4,6 +4,9 @@ use clap::{Parser, Subcommand};
 use rhizome_spore_llm::LlmIntegration;
 use rhizome_spore_lua::Runtime;
 use rhizome_spore_moss::MossIntegration;
+use rhizome_spore_moss_packages::MossPackagesIntegration;
+use rhizome_spore_moss_sessions::MossSessionsIntegration;
+use rhizome_spore_moss_tools::MossToolsIntegration;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
@@ -54,6 +57,12 @@ struct IntegrationsConfig {
     llm: bool,
     #[serde(default)]
     moss: bool,
+    #[serde(default)]
+    moss_sessions: bool,
+    #[serde(default)]
+    moss_tools: bool,
+    #[serde(default)]
+    moss_packages: bool,
 }
 
 /// Handle --schema flag for Nursery integration.
@@ -137,6 +146,24 @@ fn run(project_path: &Path, entry_override: Option<&Path>) -> Result<(), String>
             .map_err(|e| format!("Failed to register moss integration: {}", e))?;
     }
 
+    if config.integrations.moss_sessions {
+        runtime
+            .register(&MossSessionsIntegration)
+            .map_err(|e| format!("Failed to register moss_sessions integration: {}", e))?;
+    }
+
+    if config.integrations.moss_tools {
+        runtime
+            .register(&MossToolsIntegration::new(&project_path))
+            .map_err(|e| format!("Failed to register moss_tools integration: {}", e))?;
+    }
+
+    if config.integrations.moss_packages {
+        runtime
+            .register(&MossPackagesIntegration::new(&project_path))
+            .map_err(|e| format!("Failed to register moss_packages integration: {}", e))?;
+    }
+
     // Set project root in Lua
     runtime
         .lua()
@@ -171,6 +198,9 @@ entry = "main.lua"
 [integrations]
 llm = false
 moss = false
+moss_sessions = false
+moss_tools = false
+moss_packages = false
 "#;
 
     std::fs::write(spore_dir.join("config.toml"), config_content)
