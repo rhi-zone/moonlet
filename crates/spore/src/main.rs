@@ -44,6 +44,10 @@ struct Config {
     project: ProjectConfig,
     #[serde(default)]
     integrations: IntegrationsConfig,
+    #[serde(default)]
+    plugins: PluginsConfig,
+    #[serde(default)]
+    caps: CapsConfig,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -63,6 +67,29 @@ struct IntegrationsConfig {
     moss_tools: bool,
     #[serde(default)]
     moss_packages: bool,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+struct PluginsConfig {
+    #[serde(default)]
+    fs: bool,
+}
+
+#[derive(Debug, Default, Deserialize, JsonSchema)]
+struct CapsConfig {
+    #[serde(default)]
+    fs: std::collections::HashMap<String, FsCapConfig>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+struct FsCapConfig {
+    path: String,
+    #[serde(default = "default_mode")]
+    mode: String,
+}
+
+fn default_mode() -> String {
+    "r".to_string()
 }
 
 /// Handle --schema flag for Nursery integration.
@@ -131,7 +158,10 @@ fn run(project_path: &Path, entry_override: Option<&Path>) -> Result<(), String>
     }
 
     // Create runtime
-    let runtime = Runtime::new().map_err(|e| format!("Failed to create runtime: {}", e))?;
+    let mut runtime = Runtime::new().map_err(|e| format!("Failed to create runtime: {}", e))?;
+
+    // Add project-local plugin path
+    runtime.add_plugin_path(project_path.join(".spore/plugins"));
 
     // Register integrations based on config
     if config.integrations.llm {
@@ -164,6 +194,13 @@ fn run(project_path: &Path, entry_override: Option<&Path>) -> Result<(), String>
             .map_err(|e| format!("Failed to register moss_packages integration: {}", e))?;
     }
 
+    // Load plugins based on config
+    if config.plugins.fs {
+        runtime
+            .load_plugin("fs")
+            .map_err(|e| format!("Failed to load fs plugin: {}", e))?;
+    }
+
     // Set project root in Lua
     runtime
         .lua()
@@ -172,12 +209,73 @@ fn run(project_path: &Path, entry_override: Option<&Path>) -> Result<(), String>
         .and_then(|spore| spore.set("root", project_path.to_string_lossy().to_string()))
         .map_err(|e| format!("Failed to set project root: {}", e))?;
 
-    // Run the entry point
+    // Create capabilities from config
+    let caps = create_capabilities(&runtime, &config.caps, &project_path)?;
+
+    // Run the entry point with capabilities
+    let code = std::fs::read_to_string(&entry)
+        .map_err(|e| format!("Failed to read entry script: {}", e))?;
+
     runtime
-        .run_file(&entry)
+        .run_with_caps(&code, caps)
         .map_err(|e| format!("Script error: {}", e))?;
 
     Ok(())
+}
+
+/// Create capabilities from config.
+fn create_capabilities(
+    runtime: &Runtime,
+    caps_config: &CapsConfig,
+    project_path: &Path,
+) -> Result<mlua::Table, String> {
+    let lua = runtime.lua();
+    let caps = lua
+        .create_table()
+        .map_err(|e| format!("Failed to create caps table: {}", e))?;
+
+    // Create fs capabilities
+    if !caps_config.fs.is_empty() {
+        let fs_caps = lua
+            .create_table()
+            .map_err(|e| format!("Failed to create fs caps table: {}", e))?;
+
+        for (name, fs_config) in &caps_config.fs {
+            // Expand variables in path
+            let expanded_path = expand_path(&fs_config.path, project_path);
+
+            // Create params table
+            let params = lua
+                .create_table()
+                .map_err(|e| format!("Failed to create params: {}", e))?;
+            params
+                .set("path", expanded_path)
+                .map_err(|e| format!("Failed to set path: {}", e))?;
+            params
+                .set("mode", fs_config.mode.clone())
+                .map_err(|e| format!("Failed to set mode: {}", e))?;
+
+            // Create capability
+            let cap = runtime
+                .create_capability("fs", params)
+                .map_err(|e| format!("Failed to create fs capability '{}': {}", name, e))?;
+
+            fs_caps
+                .set(name.as_str(), cap)
+                .map_err(|e| format!("Failed to set capability: {}", e))?;
+        }
+
+        caps.set("fs", fs_caps)
+            .map_err(|e| format!("Failed to set fs caps: {}", e))?;
+    }
+
+    Ok(caps)
+}
+
+/// Expand variables in a path string.
+fn expand_path(path: &str, project_path: &Path) -> String {
+    path.replace("${PROJECT_ROOT}", &project_path.to_string_lossy())
+        .replace("$PROJECT_ROOT", &project_path.to_string_lossy())
 }
 
 fn init_project(path: &Path) -> Result<(), String> {
@@ -201,6 +299,17 @@ moss = false
 moss_sessions = false
 moss_tools = false
 moss_packages = false
+
+[plugins]
+fs = false
+
+# Capability configuration
+# Capabilities are created from plugin parameters and injected into scripts
+# Scripts access them via caps.{plugin}.{name}, e.g., caps.fs.project
+
+# [caps.fs]
+# project = { path = "${PROJECT_ROOT}", mode = "rw" }
+# tmp = { path = "/tmp", mode = "rw" }
 "#;
 
     std::fs::write(spore_dir.join("config.toml"), config_content)

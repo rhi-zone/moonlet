@@ -708,7 +708,16 @@ version = "5.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "44c45a9d03d6676652bcb5e724c7e988de1acad23a711b5217ab9cbecbec2225"
 dependencies = [
- "dirs-sys",
+ "dirs-sys 0.4.1",
+]
+
+[[package]]
+name = "dirs"
+version = "6.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c3e8aa94d75141228480295a7d0e7feb620b1a5ad9f12bc40be62411e38cce4e"
+dependencies = [
+ "dirs-sys 0.5.0",
 ]
 
 [[package]]
@@ -719,8 +728,20 @@ checksum = "520f05a5cbd335fae5a99ff7a6ab8627577660ee5cfd6a94a6a929b52ff0321c"
 dependencies = [
  "libc",
  "option-ext",
- "redox_users",
+ "redox_users 0.4.6",
  "windows-sys 0.48.0",
+]
+
+[[package]]
+name = "dirs-sys"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e01a3366d27ee9890022452ee61b2b63a67e6f13f58900b651ff5665f0bb1fab"
+dependencies = [
+ "libc",
+ "option-ext",
+ "redox_users 0.5.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -1412,7 +1433,7 @@ dependencies = [
  "libc",
  "percent-encoding",
  "pin-project-lite",
- "socket2 0.5.10",
+ "socket2 0.6.1",
  "system-configuration",
  "tokio",
  "tower-service",
@@ -2521,7 +2542,7 @@ dependencies = [
  "quinn-udp",
  "rustc-hash 2.1.1",
  "rustls 0.23.36",
- "socket2 0.5.10",
+ "socket2 0.6.1",
  "thiserror 2.0.17",
  "tokio",
  "tracing",
@@ -2558,7 +2579,7 @@ dependencies = [
  "cfg_aliases",
  "libc",
  "once_cell",
- "socket2 0.5.10",
+ "socket2 0.6.1",
  "tracing",
  "windows-sys 0.60.2",
 ]
@@ -2687,6 +2708,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "redox_users"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a4e608c6638b9c18977b00b475ac1f28d14e84b27d8d42f70e0bf1e3dec127ac"
+dependencies = [
+ "getrandom 0.2.16",
+ "libredox",
+ "thiserror 2.0.17",
+]
+
+[[package]]
 name = "ref-cast"
 version = "1.0.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2798,7 +2830,7 @@ dependencies = [
  "axum 0.8.8",
  "chrono",
  "clap",
- "dirs",
+ "dirs 5.0.1",
  "dotenvy",
  "flate2",
  "git2",
@@ -2870,7 +2902,7 @@ version = "0.1.0"
 source = "git+https://github.com/rhizome-lab/moss#dc9644b080230d2ae652a3479da320bcb014f867"
 dependencies = [
  "ast-grep-core",
- "dirs",
+ "dirs 5.0.1",
  "libloading",
  "libsql",
  "serde_json",
@@ -2911,7 +2943,7 @@ name = "rhizome-moss-rules"
 version = "0.1.0"
 source = "git+https://github.com/rhizome-lab/moss#dc9644b080230d2ae652a3479da320bcb014f867"
 dependencies = [
- "dirs",
+ "dirs 5.0.1",
  "glob",
  "ignore",
  "regex",
@@ -2979,6 +3011,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "rhizome-spore-fs"
+version = "0.1.0"
+dependencies = [
+ "mlua",
+ "serde_json",
+]
+
+[[package]]
 name = "rhizome-spore-llm"
 version = "0.1.0"
 dependencies = [
@@ -2994,6 +3034,8 @@ dependencies = [
 name = "rhizome-spore-lua"
 version = "0.1.0"
 dependencies = [
+ "dirs 6.0.0",
+ "libloading",
  "mlua",
  "rhizome-spore-core",
  "serde",
