@@ -20,6 +20,7 @@
           lockFile = ./Cargo.lock;
           outputHashes = {
             "rhizome-moss-0.1.0" = "sha256-SFE3cQy2WPd8RWrWoC5fxkzIRG/07qii3dBMtunBbRA=";
+            "rhizome-pith-filesystem-0.1.0" = "sha256-XD+/vftxHNrbt3lgJRUA8kr89hIDfVEs63kw5JbZER4=";
           };
         };
 
