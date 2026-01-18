@@ -73,7 +73,7 @@ local content = file:read("*a")
 - **spore-moss**: `moss.capability({root, mode})` returns capability with `:view()`, `:search()`, `:complexity()`, `:security()`, `:docs()`, `:files()`, `:duplicates()`, `:hotspots()`, `:stale_docs()`, `:check_refs()`, `:ast()`, `:query()`, `:trace()`, `:callers()`, `:callees()`, `:find()`, `:replace()`, etc.
 - **spore-tools**: `tools.capability({root})` returns capability with `:run()`, `:fix()`, `:test_run()`, etc.
 - **spore-packages**: `packages.capability({root})` returns capability with `:query()`, `:dependencies()`, `:audit()`
-- **spore-sessions**: `sessions.parse()`, `sessions.list()`, `sessions.formats()`
+- **spore-sessions**: `sessions.capability({root})` returns capability with `:parse()`, `:parse_with_format()`, `:list()`, `:detect()`; also `sessions.formats()` (no capability needed)
 - **spore-fs**: `fs.capability({path, mode})` returns capability with `:open()`, `:read()`, `:write()`, etc.
 
 ## Supported LLM Providers
