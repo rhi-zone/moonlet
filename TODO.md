@@ -43,10 +43,10 @@ Iris needs these capabilities for agent-authored insights:
 
 ## Distribution
 
-- [ ] Modular flake packaging
-  - Expose each integration as a separate flake output (cffi-based plugins can be built independently)
-  - Add `spore-full` package that depends on all integrations
-  - Consider: config attrset to select which modules to include in a custom build
+- [x] Modular flake packaging
+  - [x] Expose each integration as a separate flake output (cffi-based plugins can be built independently)
+  - [x] Add `spore-full` package that depends on all integrations
+  - [ ] Consider: config attrset to select which modules to include in a custom build
 
 ## spore-moss integration
 

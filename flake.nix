@@ -45,12 +45,14 @@
 
         # Define all plugins
         plugins = {
+          spore-embed = mkPlugin { name = "embed"; };
           spore-fs = mkPlugin { name = "fs"; };
+          spore-libsql = mkPlugin { name = "libsql"; };
           spore-llm = mkPlugin { name = "llm"; };
           spore-moss = mkPlugin { name = "moss"; };
+          spore-packages = mkPlugin { name = "packages"; };
           spore-sessions = mkPlugin { name = "sessions"; };
           spore-tools = mkPlugin { name = "tools"; };
-          spore-packages = mkPlugin { name = "packages"; };
         };
 
         # Core spore package (binary only)
