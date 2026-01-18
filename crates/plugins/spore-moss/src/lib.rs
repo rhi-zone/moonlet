@@ -13,6 +13,8 @@
 //! - `cap:complexity(path)` - Cyclomatic complexity analysis
 //! - `cap:length(path)` - Function length analysis
 //! - `cap:health(path?)` - Codebase health check
+//! - `cap:security()` - Security analysis (runs external tools like bandit)
+//! - `cap:docs(limit?)` - Documentation coverage analysis
 //!
 //! ## Capability Methods - Editing
 //! - `cap:find(path, name, opts?)` - Find a symbol by name
@@ -170,6 +172,12 @@ unsafe fn register_capability_metatable(L: *mut lua_State) {
 
             ffi::lua_pushcclosure(L, cap_health, 0);
             ffi::lua_setfield(L, -2, c"health".as_ptr());
+
+            ffi::lua_pushcclosure(L, cap_security, 0);
+            ffi::lua_setfield(L, -2, c"security".as_ptr());
+
+            ffi::lua_pushcclosure(L, cap_docs, 0);
+            ffi::lua_setfield(L, -2, c"docs".as_ptr());
 
             // Editing
             ffi::lua_pushcclosure(L, cap_find, 0);
@@ -628,6 +636,150 @@ unsafe extern "C-unwind" fn cap_health(L: *mut lua_State) -> c_int {
             ffi::lua_rawseti(L, -2, (i + 1) as ffi::lua_Integer);
         }
         ffi::lua_setfield(L, -2, c"large_files".as_ptr());
+
+        1
+    }
+}
+
+/// cap:security() -> security report
+unsafe extern "C-unwind" fn cap_security(L: *mut lua_State) -> c_int {
+    unsafe {
+        let Some(cap) = get_capability(L, 1) else {
+            return push_error(L, "invalid capability");
+        };
+
+        let report = rhizome_moss::commands::analyze::security::analyze_security(&cap.root);
+
+        ffi::lua_createtable(L, 0, 3);
+
+        // Findings array
+        ffi::lua_createtable(L, report.findings.len() as c_int, 0);
+        for (i, finding) in report.findings.iter().enumerate() {
+            ffi::lua_createtable(L, 0, 5);
+
+            let c_file = CString::new(finding.file.as_str()).unwrap();
+            ffi::lua_pushstring(L, c_file.as_ptr());
+            ffi::lua_setfield(L, -2, c"file".as_ptr());
+
+            ffi::lua_pushinteger(L, finding.line as ffi::lua_Integer);
+            ffi::lua_setfield(L, -2, c"line".as_ptr());
+
+            let c_severity = CString::new(finding.severity.as_str()).unwrap();
+            ffi::lua_pushstring(L, c_severity.as_ptr());
+            ffi::lua_setfield(L, -2, c"severity".as_ptr());
+
+            let c_rule = CString::new(finding.rule_id.as_str()).unwrap();
+            ffi::lua_pushstring(L, c_rule.as_ptr());
+            ffi::lua_setfield(L, -2, c"rule_id".as_ptr());
+
+            let c_msg = CString::new(finding.message.as_str()).unwrap();
+            ffi::lua_pushstring(L, c_msg.as_ptr());
+            ffi::lua_setfield(L, -2, c"message".as_ptr());
+
+            let c_tool = CString::new(finding.tool.as_str()).unwrap();
+            ffi::lua_pushstring(L, c_tool.as_ptr());
+            ffi::lua_setfield(L, -2, c"tool".as_ptr());
+
+            ffi::lua_rawseti(L, -2, (i + 1) as ffi::lua_Integer);
+        }
+        ffi::lua_setfield(L, -2, c"findings".as_ptr());
+
+        // Tools run
+        ffi::lua_createtable(L, report.tools_run.len() as c_int, 0);
+        for (i, tool) in report.tools_run.iter().enumerate() {
+            let c_tool = CString::new(tool.as_str()).unwrap();
+            ffi::lua_pushstring(L, c_tool.as_ptr());
+            ffi::lua_rawseti(L, -2, (i + 1) as ffi::lua_Integer);
+        }
+        ffi::lua_setfield(L, -2, c"tools_run".as_ptr());
+
+        // Tools skipped
+        ffi::lua_createtable(L, report.tools_skipped.len() as c_int, 0);
+        for (i, tool) in report.tools_skipped.iter().enumerate() {
+            let c_tool = CString::new(tool.as_str()).unwrap();
+            ffi::lua_pushstring(L, c_tool.as_ptr());
+            ffi::lua_rawseti(L, -2, (i + 1) as ffi::lua_Integer);
+        }
+        ffi::lua_setfield(L, -2, c"tools_skipped".as_ptr());
+
+        1
+    }
+}
+
+/// cap:docs(limit?) -> documentation coverage report
+unsafe extern "C-unwind" fn cap_docs(L: *mut lua_State) -> c_int {
+    unsafe {
+        let Some(cap) = get_capability(L, 1) else {
+            return push_error(L, "invalid capability");
+        };
+
+        let limit = if ffi::lua_type(L, 2) == ffi::LUA_TNUMBER {
+            ffi::lua_tointeger(L, 2) as usize
+        } else {
+            10 // Default limit for worst files
+        };
+
+        let report = rhizome_moss::commands::analyze::docs::analyze_docs(
+            &cap.root, limit, true, // exclude_interface_impls
+            None, // no filter
+        );
+
+        ffi::lua_createtable(L, 0, 5);
+
+        ffi::lua_pushinteger(L, report.total_callables as ffi::lua_Integer);
+        ffi::lua_setfield(L, -2, c"total_callables".as_ptr());
+
+        ffi::lua_pushinteger(L, report.documented as ffi::lua_Integer);
+        ffi::lua_setfield(L, -2, c"documented".as_ptr());
+
+        ffi::lua_pushnumber(L, report.coverage_percent);
+        ffi::lua_setfield(L, -2, c"coverage_percent".as_ptr());
+
+        // By language
+        ffi::lua_createtable(L, 0, report.by_language.len() as c_int);
+        for (lang, (documented, total)) in &report.by_language {
+            ffi::lua_createtable(L, 0, 3);
+
+            ffi::lua_pushinteger(L, *documented as ffi::lua_Integer);
+            ffi::lua_setfield(L, -2, c"documented".as_ptr());
+
+            ffi::lua_pushinteger(L, *total as ffi::lua_Integer);
+            ffi::lua_setfield(L, -2, c"total".as_ptr());
+
+            let pct = if *total > 0 {
+                100.0 * *documented as f64 / *total as f64
+            } else {
+                0.0
+            };
+            ffi::lua_pushnumber(L, pct);
+            ffi::lua_setfield(L, -2, c"percent".as_ptr());
+
+            let c_lang = CString::new(lang.as_str()).unwrap();
+            ffi::lua_setfield(L, -2, c_lang.as_ptr());
+        }
+        ffi::lua_setfield(L, -2, c"by_language".as_ptr());
+
+        // Worst files
+        ffi::lua_createtable(L, report.worst_files.len() as c_int, 0);
+        for (i, fc) in report.worst_files.iter().enumerate() {
+            ffi::lua_createtable(L, 0, 4);
+
+            let c_file = CString::new(fc.file_path.as_str()).unwrap();
+            ffi::lua_pushstring(L, c_file.as_ptr());
+            ffi::lua_setfield(L, -2, c"file".as_ptr());
+
+            ffi::lua_pushinteger(L, fc.documented as ffi::lua_Integer);
+            ffi::lua_setfield(L, -2, c"documented".as_ptr());
+
+            ffi::lua_pushinteger(L, fc.total as ffi::lua_Integer);
+            ffi::lua_setfield(L, -2, c"total".as_ptr());
+
+            ffi::lua_pushnumber(L, fc.coverage_percent());
+            ffi::lua_setfield(L, -2, c"percent".as_ptr());
+
+            ffi::lua_rawseti(L, -2, (i + 1) as ffi::lua_Integer);
+        }
+        ffi::lua_setfield(L, -2, c"worst_files".as_ptr());
 
         1
     }

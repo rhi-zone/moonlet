@@ -21,6 +21,8 @@ rhizome-spore-moss = { path = "crates/plugins/spore-moss" }
 rhizome-spore-sessions = { path = "crates/plugins/spore-sessions" }
 rhizome-spore-tools = { path = "crates/plugins/spore-tools" }
 rhizome-spore-packages = { path = "crates/plugins/spore-packages" }
+rhizome-spore-embed = { path = "crates/plugins/spore-embed" }
+rhizome-spore-libsql = { path = "crates/plugins/spore-libsql" }
 
 # Pith interfaces
 rhizome-pith-io = { git = "https://github.com/rhizome-lab/pith" }

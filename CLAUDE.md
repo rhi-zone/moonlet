@@ -25,6 +25,8 @@ crates/
 └── plugins/              # Dynamic C ABI plugins (cdylib)
     ├── spore-fs/         # Filesystem with capability-based security
     ├── spore-llm/        # Multi-provider LLM client
+    ├── spore-embed/      # Multi-provider embedding generation
+    ├── spore-libsql/     # LibSQL/SQLite with vector support
     ├── spore-moss/       # Code intelligence (view, search, analyze, edit)
     ├── spore-sessions/   # AI session parsing
     ├── spore-tools/      # Dev tools (linters, formatters, test runners)
@@ -66,7 +68,9 @@ local content = file:read("*a")
 
 ### Plugins
 - **spore-llm**: `llm.complete()`, `llm.chat()`, `llm.providers()`
-- **spore-moss**: `moss.capability({root, mode})` returns capability with `:view()`, `:search()`, `:complexity()`, `:find()`, `:replace()`, etc.
+- **spore-embed**: `embed.generate(provider, model?, texts)`, `embed.start_generate()` (async), `embed.providers()`
+- **spore-libsql**: `libsql.open(path)`, `libsql.open_memory()`, `libsql.vector32()`, `libsql.vector64()`; Connection with `:execute()`, `:query()`, `:close()`
+- **spore-moss**: `moss.capability({root, mode})` returns capability with `:view()`, `:search()`, `:complexity()`, `:security()`, `:docs()`, `:find()`, `:replace()`, etc.
 - **spore-tools**: `tools.capability({root})` returns capability with `:run()`, `:fix()`, `:test_run()`, etc.
 - **spore-packages**: `packages.capability({root})` returns capability with `:query()`, `:dependencies()`, `:audit()`
 - **spore-sessions**: `sessions.parse()`, `sessions.list()`, `sessions.formats()`
@@ -75,6 +79,10 @@ local content = file:read("*a")
 ## Supported LLM Providers
 
 Anthropic, OpenAI, Azure, Gemini, Cohere, DeepSeek, Groq, Mistral, Ollama, OpenRouter, Perplexity, Together, XAI
+
+## Supported Embedding Providers
+
+OpenAI, Azure, Gemini, Cohere, Mistral, Ollama, Together
 
 ## Development
 

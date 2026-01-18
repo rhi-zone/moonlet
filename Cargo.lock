@@ -2824,7 +2824,7 @@ dependencies = [
 [[package]]
 name = "rhizome-moss"
 version = "0.1.0"
-source = "git+https://github.com/rhizome-lab/moss#dc9644b080230d2ae652a3479da320bcb014f867"
+source = "git+https://github.com/rhizome-lab/moss#79871d6cec073e9ac7d18b91958982a6820b5659"
 dependencies = [
  "ast-grep-core",
  "axum 0.8.8",
@@ -2876,12 +2876,12 @@ dependencies = [
 [[package]]
 name = "rhizome-moss-core"
 version = "0.1.0"
-source = "git+https://github.com/rhizome-lab/moss#dc9644b080230d2ae652a3479da320bcb014f867"
+source = "git+https://github.com/rhizome-lab/moss#79871d6cec073e9ac7d18b91958982a6820b5659"
 
 [[package]]
 name = "rhizome-moss-derive"
 version = "0.1.0"
-source = "git+https://github.com/rhizome-lab/moss#dc9644b080230d2ae652a3479da320bcb014f867"
+source = "git+https://github.com/rhizome-lab/moss#79871d6cec073e9ac7d18b91958982a6820b5659"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2891,7 +2891,7 @@ dependencies = [
 [[package]]
 name = "rhizome-moss-jsonschema"
 version = "0.1.0"
-source = "git+https://github.com/rhizome-lab/moss#dc9644b080230d2ae652a3479da320bcb014f867"
+source = "git+https://github.com/rhizome-lab/moss#79871d6cec073e9ac7d18b91958982a6820b5659"
 dependencies = [
  "serde_json",
 ]
@@ -2899,7 +2899,7 @@ dependencies = [
 [[package]]
 name = "rhizome-moss-languages"
 version = "0.1.0"
-source = "git+https://github.com/rhizome-lab/moss#dc9644b080230d2ae652a3479da320bcb014f867"
+source = "git+https://github.com/rhizome-lab/moss#79871d6cec073e9ac7d18b91958982a6820b5659"
 dependencies = [
  "ast-grep-core",
  "dirs 5.0.1",
@@ -2913,7 +2913,7 @@ dependencies = [
 [[package]]
 name = "rhizome-moss-openapi"
 version = "0.1.0"
-source = "git+https://github.com/rhizome-lab/moss#dc9644b080230d2ae652a3479da320bcb014f867"
+source = "git+https://github.com/rhizome-lab/moss#79871d6cec073e9ac7d18b91958982a6820b5659"
 dependencies = [
  "serde_json",
 ]
@@ -2921,7 +2921,7 @@ dependencies = [
 [[package]]
 name = "rhizome-moss-packages"
 version = "0.1.0"
-source = "git+https://github.com/rhizome-lab/moss#dc9644b080230d2ae652a3479da320bcb014f867"
+source = "git+https://github.com/rhizome-lab/moss#79871d6cec073e9ac7d18b91958982a6820b5659"
 dependencies = [
  "flate2",
  "quick-xml",
@@ -2941,7 +2941,7 @@ dependencies = [
 [[package]]
 name = "rhizome-moss-rules"
 version = "0.1.0"
-source = "git+https://github.com/rhizome-lab/moss#dc9644b080230d2ae652a3479da320bcb014f867"
+source = "git+https://github.com/rhizome-lab/moss#79871d6cec073e9ac7d18b91958982a6820b5659"
 dependencies = [
  "dirs 5.0.1",
  "glob",
@@ -2960,7 +2960,7 @@ dependencies = [
 [[package]]
 name = "rhizome-moss-sessions"
 version = "0.1.0"
-source = "git+https://github.com/rhizome-lab/moss#dc9644b080230d2ae652a3479da320bcb014f867"
+source = "git+https://github.com/rhizome-lab/moss#79871d6cec073e9ac7d18b91958982a6820b5659"
 dependencies = [
  "regex",
  "serde",
@@ -2970,7 +2970,7 @@ dependencies = [
 [[package]]
 name = "rhizome-moss-tools"
 version = "0.1.0"
-source = "git+https://github.com/rhizome-lab/moss#dc9644b080230d2ae652a3479da320bcb014f867"
+source = "git+https://github.com/rhizome-lab/moss#79871d6cec073e9ac7d18b91958982a6820b5659"
 dependencies = [
  "rayon",
  "serde",
@@ -3019,6 +3019,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "rhizome-spore-embed"
+version = "0.1.0"
+dependencies = [
+ "mlua",
+ "reqwest",
+ "rhizome-spore-lua",
+ "rig-core",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "rhizome-spore-fs"
 version = "0.1.0"
 dependencies = [
@@ -3026,6 +3038,16 @@ dependencies = [
  "rhizome-pith-filesystem",
  "rhizome-pith-io",
  "serde_json",
+]
+
+[[package]]
+name = "rhizome-spore-libsql"
+version = "0.1.0"
+dependencies = [
+ "libsql",
+ "mlua",
+ "serde_json",
+ "tokio",
 ]
 
 [[package]]
