@@ -3,8 +3,10 @@
 //! This crate provides the Lua execution environment for agent scripts,
 //! with support for dynamic plugins and integration modules.
 
+pub mod handle;
 pub mod plugin;
 
+pub use handle::{Handle, HandleItem, HandleResult, Stream, push_handle, spawn_subprocess};
 use mlua::{Lua, Result, Table, Value};
 pub use plugin::{ABI_VERSION, PluginInfo, PluginLoader};
 use std::path::PathBuf;
@@ -150,5 +152,15 @@ fn register_core(lua: &Lua) -> Result<()> {
     // TODO: Register MemoryStore bindings
 
     lua.globals().set("spore", spore)?;
+
+    // Register Handle metatable and poll functions using raw Lua C API
+    // Safety: exec_raw provides safe access to the raw lua_State
+    unsafe {
+        lua.exec_raw::<()>((), |state| {
+            handle::register_handle_metatable(state);
+            handle::register_poll_functions(state);
+        })?;
+    }
+
     Ok(())
 }

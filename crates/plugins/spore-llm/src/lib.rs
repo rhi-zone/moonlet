@@ -5,18 +5,21 @@
 //! ## Module Functions
 //! - `llm.providers()` - List available providers
 //! - `llm.provider_info(name)` - Get provider details
-//! - `llm.complete(provider, model?, system?, prompt, opts?)` - Single completion
-//! - `llm.chat(provider, model?, system?, prompt, history, opts?)` - Chat with history
+//! - `llm.complete(provider, model?, system?, prompt, opts?)` - Single completion (blocking)
+//! - `llm.chat(provider, model?, system?, prompt, history, opts?)` - Chat with history (blocking)
+//! - `llm.start_chat(provider, model?, system?, prompt, history, opts?)` - Chat (async, returns Handle)
 
 #![allow(non_snake_case)]
 
 use mlua::ffi::{self, lua_State};
+use rhizome_spore_lua::handle::{self, Handle, HandleItem, HandleResult, Stream};
 use rig::{
     client::{CompletionClient, ProviderClient},
     completion::{Chat, Message},
     providers,
 };
 use std::ffi::{CStr, CString, c_char, c_int};
+use std::sync::mpsc::channel;
 
 /// Plugin ABI version.
 const ABI_VERSION: u32 = 1;
@@ -163,8 +166,11 @@ pub extern "C" fn spore_plugin_info() -> SporePluginInfo {
 #[unsafe(no_mangle)]
 pub unsafe extern "C-unwind" fn luaopen_spore_llm(L: *mut lua_State) -> c_int {
     unsafe {
+        // Register Handle metatable (from spore-lua)
+        handle::register_handle_metatable(L);
+
         // Create module table
-        ffi::lua_createtable(L, 0, 4);
+        ffi::lua_createtable(L, 0, 5);
 
         ffi::lua_pushcclosure(L, llm_providers, 0);
         ffi::lua_setfield(L, -2, c"providers".as_ptr());
@@ -177,6 +183,9 @@ pub unsafe extern "C-unwind" fn luaopen_spore_llm(L: *mut lua_State) -> c_int {
 
         ffi::lua_pushcclosure(L, llm_chat, 0);
         ffi::lua_setfield(L, -2, c"chat".as_ptr());
+
+        ffi::lua_pushcclosure(L, llm_start_chat, 0);
+        ffi::lua_setfield(L, -2, c"start_chat".as_ptr());
 
         1
     }
@@ -385,6 +394,150 @@ unsafe extern "C-unwind" fn llm_chat(L: *mut lua_State) -> c_int {
             Err(e) => push_error(L, &e),
         }
     }
+}
+
+/// llm.start_chat(provider, model?, system?, prompt, history, opts?) -> Handle
+/// Starts chat asynchronously, returning a Handle for polling completion.
+unsafe extern "C-unwind" fn llm_start_chat(L: *mut lua_State) -> c_int {
+    unsafe {
+        if ffi::lua_type(L, 1) != ffi::LUA_TSTRING {
+            return push_error(L, "start_chat requires provider argument");
+        }
+        let provider_ptr = ffi::lua_tostring(L, 1);
+        let provider_str = CStr::from_ptr(provider_ptr).to_string_lossy().into_owned();
+
+        let model = if ffi::lua_type(L, 2) == ffi::LUA_TSTRING {
+            let ptr = ffi::lua_tostring(L, 2);
+            Some(CStr::from_ptr(ptr).to_string_lossy().into_owned())
+        } else {
+            None
+        };
+
+        let system = if ffi::lua_type(L, 3) == ffi::LUA_TSTRING {
+            let ptr = ffi::lua_tostring(L, 3);
+            Some(CStr::from_ptr(ptr).to_string_lossy().into_owned())
+        } else {
+            None
+        };
+
+        if ffi::lua_type(L, 4) != ffi::LUA_TSTRING {
+            return push_error(L, "start_chat requires prompt argument");
+        }
+        let prompt_ptr = ffi::lua_tostring(L, 4);
+        let prompt = CStr::from_ptr(prompt_ptr).to_string_lossy().into_owned();
+
+        // Parse history table
+        let mut history: Vec<(String, String)> = Vec::new();
+        if ffi::lua_type(L, 5) == ffi::LUA_TTABLE {
+            let len = ffi::lua_rawlen(L, 5);
+            for i in 1..=len {
+                ffi::lua_rawgeti(L, 5, i as ffi::lua_Integer);
+                if ffi::lua_type(L, -1) == ffi::LUA_TTABLE {
+                    ffi::lua_getfield(L, -1, c"role".as_ptr());
+                    let role = if ffi::lua_type(L, -1) == ffi::LUA_TSTRING {
+                        CStr::from_ptr(ffi::lua_tostring(L, -1))
+                            .to_string_lossy()
+                            .into_owned()
+                    } else {
+                        "user".to_string()
+                    };
+                    ffi::lua_pop(L, 1);
+
+                    ffi::lua_getfield(L, -1, c"content".as_ptr());
+                    let content = if ffi::lua_type(L, -1) == ffi::LUA_TSTRING {
+                        CStr::from_ptr(ffi::lua_tostring(L, -1))
+                            .to_string_lossy()
+                            .into_owned()
+                    } else {
+                        String::new()
+                    };
+                    ffi::lua_pop(L, 1);
+
+                    history.push((role, content));
+                }
+                ffi::lua_pop(L, 1);
+            }
+        }
+
+        let max_tokens = if ffi::lua_type(L, 6) == ffi::LUA_TTABLE {
+            ffi::lua_getfield(L, 6, c"max_tokens".as_ptr());
+            let tokens = if ffi::lua_type(L, -1) == ffi::LUA_TNUMBER {
+                Some(ffi::lua_tointeger(L, -1) as usize)
+            } else {
+                None
+            };
+            ffi::lua_pop(L, 1);
+            tokens
+        } else {
+            None
+        };
+
+        // Create Handle for async chat
+        let handle = spawn_chat_request(provider_str, model, system, prompt, history, max_tokens);
+        handle::push_handle(L, handle)
+    }
+}
+
+/// Spawn an LLM chat request in a background thread and return a Handle.
+fn spawn_chat_request(
+    provider_str: String,
+    model: Option<String>,
+    system: Option<String>,
+    prompt: String,
+    history: Vec<(String, String)>,
+    max_tokens: Option<usize>,
+) -> Handle {
+    let (tx, rx) = channel();
+    let (kill_tx, kill_rx) = channel::<()>();
+
+    let provider_name = provider_str.clone();
+
+    let join_handle = std::thread::spawn(move || {
+        // Check for kill signal early
+        if kill_rx.try_recv().is_ok() {
+            return HandleResult {
+                success: false,
+                exit_code: None,
+                data: Some("cancelled".to_string()),
+            };
+        }
+
+        // Run the blocking chat
+        match do_chat(
+            &provider_str,
+            model.as_deref(),
+            system.as_deref(),
+            &prompt,
+            history,
+            max_tokens,
+        ) {
+            Ok(response) => {
+                // Send the response through the channel so it can be read with :read()
+                let _ = tx.send(HandleItem {
+                    stream: Stream::Default,
+                    content: response.clone(),
+                });
+                HandleResult {
+                    success: true,
+                    exit_code: Some(0),
+                    data: Some(response),
+                }
+            }
+            Err(e) => {
+                let _ = tx.send(HandleItem {
+                    stream: Stream::Stderr,
+                    content: e.clone(),
+                });
+                HandleResult {
+                    success: false,
+                    exit_code: Some(1),
+                    data: Some(e),
+                }
+            }
+        }
+    });
+
+    Handle::new(provider_name, rx, Some(join_handle), Some(kill_tx))
 }
 
 // ============================================================================

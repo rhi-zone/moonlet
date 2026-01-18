@@ -3034,6 +3034,7 @@ version = "0.1.0"
 dependencies = [
  "mlua",
  "reqwest",
+ "rhizome-spore-lua",
  "rig-core",
  "serde_json",
  "tokio",
@@ -3086,6 +3087,7 @@ version = "0.1.0"
 dependencies = [
  "mlua",
  "rhizome-moss-tools",
+ "rhizome-spore-lua",
  "serde_json",
 ]
 

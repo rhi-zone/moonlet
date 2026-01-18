@@ -17,7 +17,8 @@
 //! - `cap:run(name, paths?, opts?)` - Run tool
 //! - `cap:fix(name, paths?, opts?)` - Run tool in fix mode
 //! - `cap:test_detect()` - Detect best test runner
-//! - `cap:test_run(name?, args?, opts?)` - Run tests
+//! - `cap:test_run(name?, args?, opts?)` - Run tests (blocking)
+//! - `cap:test_start(name?, args?, opts?)` - Run tests (async, returns Handle)
 
 #![allow(non_snake_case)]
 
@@ -26,8 +27,12 @@ use rhizome_moss_tools::{
     ToolCategory, ToolResult, default_registry, get_tool,
     test_runners::{self, TestRunner},
 };
+use rhizome_spore_lua::handle::{self, Handle, HandleItem, HandleResult, Stream};
 use std::ffi::{CStr, CString, c_char, c_int};
+use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
+use std::sync::mpsc::channel;
 
 /// Plugin ABI version.
 const ABI_VERSION: u32 = 1;
@@ -79,6 +84,9 @@ pub extern "C" fn spore_plugin_info() -> SporePluginInfo {
 #[unsafe(no_mangle)]
 pub unsafe extern "C-unwind" fn luaopen_spore_tools(L: *mut lua_State) -> c_int {
     unsafe {
+        // Register Handle metatable (from spore-lua)
+        handle::register_handle_metatable(L);
+
         // Register capability metatable
         register_capability_metatable(L);
 
@@ -116,7 +124,7 @@ pub unsafe extern "C-unwind" fn luaopen_spore_tools(L: *mut lua_State) -> c_int 
 unsafe fn register_capability_metatable(L: *mut lua_State) {
     unsafe {
         if ffi::luaL_newmetatable(L, TOOLS_CAP_METATABLE.as_ptr() as *const c_char) != 0 {
-            ffi::lua_createtable(L, 0, 6);
+            ffi::lua_createtable(L, 0, 7);
 
             ffi::lua_pushcclosure(L, cap_detect, 0);
             ffi::lua_setfield(L, -2, c"detect".as_ptr());
@@ -132,6 +140,9 @@ unsafe fn register_capability_metatable(L: *mut lua_State) {
 
             ffi::lua_pushcclosure(L, cap_test_run, 0);
             ffi::lua_setfield(L, -2, c"test_run".as_ptr());
+
+            ffi::lua_pushcclosure(L, cap_test_start, 0);
+            ffi::lua_setfield(L, -2, c"test_start".as_ptr());
 
             ffi::lua_pushcclosure(L, cap_attenuate, 0);
             ffi::lua_setfield(L, -2, c"attenuate".as_ptr());
@@ -525,6 +536,158 @@ unsafe extern "C-unwind" fn cap_test_run(L: *mut lua_State) -> c_int {
             Err(e) => push_error(L, &format!("Test execution failed: {}", e)),
         }
     }
+}
+
+/// cap:test_start(name?, args?, opts?) -> Handle
+/// Starts test runner asynchronously, returning a Handle for streaming output.
+unsafe extern "C-unwind" fn cap_test_start(L: *mut lua_State) -> c_int {
+    unsafe {
+        let Some(cap) = get_capability(L, 1) else {
+            return push_error(L, "invalid capability");
+        };
+
+        // Get runner name (optional)
+        let runner: &dyn TestRunner = if ffi::lua_type(L, 2) == ffi::LUA_TSTRING {
+            let name_ptr = ffi::lua_tostring(L, 2);
+            let name = CStr::from_ptr(name_ptr).to_string_lossy();
+            match test_runners::get_runner(&name) {
+                Some(r) => r,
+                None => return push_error(L, &format!("Test runner not found: {}", name)),
+            }
+        } else {
+            match test_runners::detect_test_runner(&cap.root) {
+                Some(r) => r,
+                None => return push_error(L, "No suitable test runner detected"),
+            }
+        };
+
+        if !runner.is_available() {
+            return push_error(
+                L,
+                &format!("Test runner not available: {}", runner.info().name),
+            );
+        }
+
+        // Get extra args (optional)
+        let args = get_string_array_arg(L, 3);
+
+        // Build the command based on runner name
+        let runner_name = runner.info().name;
+        let (cmd_name, base_args) = get_runner_command(runner_name);
+        let mut cmd = Command::new(&cmd_name);
+        cmd.current_dir(&cap.root);
+        cmd.args(&base_args);
+        cmd.args(&args);
+        cmd.stdout(Stdio::piped());
+        cmd.stderr(Stdio::piped());
+
+        // Spawn the process
+        let child = match cmd.spawn() {
+            Ok(c) => c,
+            Err(e) => return push_error(L, &format!("Failed to spawn test runner: {}", e)),
+        };
+
+        // Create Handle for async streaming
+        let handle = spawn_test_process(runner_name.to_string(), child);
+        handle::push_handle(L, handle)
+    }
+}
+
+/// Map runner name to command and base args.
+/// This mirrors the command building in moss-tools test runners.
+fn get_runner_command(name: &str) -> (String, Vec<&'static str>) {
+    match name {
+        "cargo" => ("cargo".to_string(), vec!["test"]),
+        "pytest" => ("pytest".to_string(), vec![]),
+        "npm" => ("npm".to_string(), vec!["test"]),
+        "jest" => ("npx".to_string(), vec!["jest"]),
+        "mocha" => ("npx".to_string(), vec!["mocha"]),
+        "go" => ("go".to_string(), vec!["test", "./..."]),
+        "maven" | "mvn" => ("mvn".to_string(), vec!["test"]),
+        "gradle" => ("gradle".to_string(), vec!["test"]),
+        "rspec" => ("bundle".to_string(), vec!["exec", "rspec"]),
+        "phpunit" => ("vendor/bin/phpunit".to_string(), vec![]),
+        "dotnet" => ("dotnet".to_string(), vec!["test"]),
+        // Default: try running the name directly
+        _ => (name.to_string(), vec![]),
+    }
+}
+
+/// Spawn a test process and return a Handle for streaming output.
+fn spawn_test_process(name: String, mut child: std::process::Child) -> Handle {
+    use std::time::Duration;
+
+    let (tx, rx) = channel();
+    let (kill_tx, kill_rx) = channel::<()>();
+
+    let stdout = child.stdout.take();
+    let stderr = child.stderr.take();
+
+    // Spawn thread to read stdout
+    let tx_stdout = tx.clone();
+    if let Some(stdout) = stdout {
+        std::thread::spawn(move || {
+            let reader = BufReader::new(stdout);
+            for line in reader.lines().map_while(Result::ok) {
+                let _ = tx_stdout.send(HandleItem {
+                    stream: Stream::Stdout,
+                    content: line,
+                });
+            }
+        });
+    }
+
+    // Spawn thread to read stderr
+    let tx_stderr = tx;
+    if let Some(stderr) = stderr {
+        std::thread::spawn(move || {
+            let reader = BufReader::new(stderr);
+            for line in reader.lines().map_while(Result::ok) {
+                let _ = tx_stderr.send(HandleItem {
+                    stream: Stream::Stderr,
+                    content: line,
+                });
+            }
+        });
+    }
+
+    // Spawn thread to wait for completion and handle kill
+    let join_handle = std::thread::spawn(move || {
+        loop {
+            // Check for kill signal
+            if kill_rx.try_recv().is_ok() {
+                let _ = child.kill();
+                return HandleResult {
+                    success: false,
+                    exit_code: None,
+                    data: Some("killed".to_string()),
+                };
+            }
+
+            // Check if child has exited
+            match child.try_wait() {
+                Ok(Some(status)) => {
+                    return HandleResult {
+                        success: status.success(),
+                        exit_code: status.code(),
+                        data: None,
+                    };
+                }
+                Ok(None) => {
+                    std::thread::sleep(Duration::from_millis(10));
+                }
+                Err(e) => {
+                    return HandleResult {
+                        success: false,
+                        exit_code: None,
+                        data: Some(e.to_string()),
+                    };
+                }
+            }
+        }
+    });
+
+    Handle::new(name, rx, Some(join_handle), Some(kill_tx))
 }
 
 /// cap:attenuate({ root = "subdir" }) -> new capability
