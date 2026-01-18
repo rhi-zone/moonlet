@@ -20,6 +20,11 @@
 //! - `cap:hotspots()` - Git churn hotspot analysis
 //! - `cap:stale_docs()` - Find stale documentation
 //! - `cap:check_refs()` - Check documentation references
+//! - `cap:ast(path, opts?)` - AST inspection (sexp or tree format)
+//! - `cap:query(pattern, opts?)` - Tree-sitter/ast-grep queries
+//! - `cap:trace(symbol, opts?)` - Value provenance tracing
+//! - `cap:callers(symbol)` - Find callers (requires moss index)
+//! - `cap:callees(symbol)` - Find callees (requires moss index)
 //!
 //! ## Capability Methods - Editing
 //! - `cap:find(path, name, opts?)` - Find a symbol by name
@@ -198,6 +203,21 @@ unsafe fn register_capability_metatable(L: *mut lua_State) {
 
             ffi::lua_pushcclosure(L, cap_check_refs, 0);
             ffi::lua_setfield(L, -2, c"check_refs".as_ptr());
+
+            ffi::lua_pushcclosure(L, cap_ast, 0);
+            ffi::lua_setfield(L, -2, c"ast".as_ptr());
+
+            ffi::lua_pushcclosure(L, cap_query, 0);
+            ffi::lua_setfield(L, -2, c"query".as_ptr());
+
+            ffi::lua_pushcclosure(L, cap_trace, 0);
+            ffi::lua_setfield(L, -2, c"trace".as_ptr());
+
+            ffi::lua_pushcclosure(L, cap_callers, 0);
+            ffi::lua_setfield(L, -2, c"callers".as_ptr());
+
+            ffi::lua_pushcclosure(L, cap_callees, 0);
+            ffi::lua_setfield(L, -2, c"callees".as_ptr());
 
             // Editing
             ffi::lua_pushcclosure(L, cap_find, 0);
@@ -976,6 +996,247 @@ unsafe extern "C-unwind" fn cap_check_refs(L: *mut lua_State) -> c_int {
 
         let exit_code =
             rhizome_moss::commands::analyze::check_refs::cmd_check_refs(&cap.root, false);
+
+        ffi::lua_createtable(L, 0, 1);
+        ffi::lua_pushinteger(L, exit_code as ffi::lua_Integer);
+        ffi::lua_setfield(L, -2, c"exit_code".as_ptr());
+
+        1
+    }
+}
+
+/// cap:ast(path, opts?) -> AST inspection
+/// opts: { line = N, sexp = bool, json = bool }
+unsafe extern "C-unwind" fn cap_ast(L: *mut lua_State) -> c_int {
+    unsafe {
+        let Some(cap) = get_capability(L, 1) else {
+            return push_error(L, "invalid capability");
+        };
+
+        if ffi::lua_type(L, 2) != ffi::LUA_TSTRING {
+            return push_error(L, "ast requires path argument");
+        }
+        let path_ptr = ffi::lua_tostring(L, 2);
+        let rel_path = CStr::from_ptr(path_ptr).to_string_lossy();
+
+        let full_path = match cap.resolve_path(&rel_path) {
+            Ok(p) => p,
+            Err(e) => return push_error(L, &e),
+        };
+
+        // Parse options
+        let (at_line, sexp, json) = if ffi::lua_type(L, 3) == ffi::LUA_TTABLE {
+            ffi::lua_getfield(L, 3, c"line".as_ptr());
+            let line = if ffi::lua_type(L, -1) == ffi::LUA_TNUMBER {
+                Some(ffi::lua_tointeger(L, -1) as usize)
+            } else {
+                None
+            };
+            ffi::lua_pop(L, 1);
+
+            ffi::lua_getfield(L, 3, c"sexp".as_ptr());
+            let sexp = ffi::lua_toboolean(L, -1) != 0;
+            ffi::lua_pop(L, 1);
+
+            ffi::lua_getfield(L, 3, c"json".as_ptr());
+            let json = ffi::lua_toboolean(L, -1) != 0;
+            ffi::lua_pop(L, 1);
+
+            (line, sexp, json)
+        } else {
+            (None, false, false)
+        };
+
+        // Run AST command (prints to stdout)
+        let exit_code =
+            rhizome_moss::commands::analyze::ast::cmd_ast(&full_path, at_line, sexp, json);
+
+        ffi::lua_createtable(L, 0, 1);
+        ffi::lua_pushinteger(L, exit_code as ffi::lua_Integer);
+        ffi::lua_setfield(L, -2, c"exit_code".as_ptr());
+
+        1
+    }
+}
+
+/// cap:query(pattern, opts?) -> tree-sitter/ast-grep query results
+/// opts: { path = "subdir", show_source = bool, context = N }
+unsafe extern "C-unwind" fn cap_query(L: *mut lua_State) -> c_int {
+    unsafe {
+        let Some(cap) = get_capability(L, 1) else {
+            return push_error(L, "invalid capability");
+        };
+
+        if ffi::lua_type(L, 2) != ffi::LUA_TSTRING {
+            return push_error(L, "query requires pattern argument");
+        }
+        let pattern_ptr = ffi::lua_tostring(L, 2);
+        let pattern = CStr::from_ptr(pattern_ptr).to_string_lossy();
+
+        // Parse options
+        let (path, show_source, context) = if ffi::lua_type(L, 3) == ffi::LUA_TTABLE {
+            ffi::lua_getfield(L, 3, c"path".as_ptr());
+            let path = if ffi::lua_type(L, -1) == ffi::LUA_TSTRING {
+                let p = CStr::from_ptr(ffi::lua_tostring(L, -1))
+                    .to_string_lossy()
+                    .into_owned();
+                Some(cap.root.join(p))
+            } else {
+                None
+            };
+            ffi::lua_pop(L, 1);
+
+            ffi::lua_getfield(L, 3, c"show_source".as_ptr());
+            let show_source = ffi::lua_toboolean(L, -1) != 0;
+            ffi::lua_pop(L, 1);
+
+            ffi::lua_getfield(L, 3, c"context".as_ptr());
+            let context = if ffi::lua_type(L, -1) == ffi::LUA_TNUMBER {
+                ffi::lua_tointeger(L, -1) as usize
+            } else {
+                10
+            };
+            ffi::lua_pop(L, 1);
+
+            (path, show_source, context)
+        } else {
+            (None, false, 10)
+        };
+
+        let format = rhizome_moss::output::OutputFormat::Compact;
+
+        // Run query command (prints to stdout)
+        let exit_code = rhizome_moss::commands::analyze::query::cmd_query(
+            &pattern,
+            path.as_deref(),
+            None, // filter
+            show_source,
+            context,
+            &format,
+        );
+
+        ffi::lua_createtable(L, 0, 1);
+        ffi::lua_pushinteger(L, exit_code as ffi::lua_Integer);
+        ffi::lua_setfield(L, -2, c"exit_code".as_ptr());
+
+        1
+    }
+}
+
+/// cap:trace(symbol, opts?) -> value provenance tracing
+/// opts: { target = "file.rs", max_depth = N, recursive = bool }
+unsafe extern "C-unwind" fn cap_trace(L: *mut lua_State) -> c_int {
+    unsafe {
+        let Some(cap) = get_capability(L, 1) else {
+            return push_error(L, "invalid capability");
+        };
+
+        if ffi::lua_type(L, 2) != ffi::LUA_TSTRING {
+            return push_error(L, "trace requires symbol argument");
+        }
+        let symbol_ptr = ffi::lua_tostring(L, 2);
+        let symbol = CStr::from_ptr(symbol_ptr).to_string_lossy();
+
+        // Parse options
+        let (target, max_depth, recursive) = if ffi::lua_type(L, 3) == ffi::LUA_TTABLE {
+            ffi::lua_getfield(L, 3, c"target".as_ptr());
+            let target = if ffi::lua_type(L, -1) == ffi::LUA_TSTRING {
+                Some(
+                    CStr::from_ptr(ffi::lua_tostring(L, -1))
+                        .to_string_lossy()
+                        .into_owned(),
+                )
+            } else {
+                None
+            };
+            ffi::lua_pop(L, 1);
+
+            ffi::lua_getfield(L, 3, c"max_depth".as_ptr());
+            let max_depth = if ffi::lua_type(L, -1) == ffi::LUA_TNUMBER {
+                ffi::lua_tointeger(L, -1) as usize
+            } else {
+                3
+            };
+            ffi::lua_pop(L, 1);
+
+            ffi::lua_getfield(L, 3, c"recursive".as_ptr());
+            let recursive = ffi::lua_toboolean(L, -1) != 0;
+            ffi::lua_pop(L, 1);
+
+            (target, max_depth, recursive)
+        } else {
+            (None, 3, false)
+        };
+
+        // Run trace command (prints to stdout)
+        let exit_code = rhizome_moss::commands::analyze::trace::cmd_trace(
+            &symbol,
+            target.as_deref(),
+            &cap.root,
+            max_depth,
+            recursive,
+            false, // case_insensitive
+            false, // json
+            false, // pretty
+        );
+
+        ffi::lua_createtable(L, 0, 1);
+        ffi::lua_pushinteger(L, exit_code as ffi::lua_Integer);
+        ffi::lua_setfield(L, -2, c"exit_code".as_ptr());
+
+        1
+    }
+}
+
+/// cap:callers(symbol) -> find callers of a symbol (requires moss index)
+unsafe extern "C-unwind" fn cap_callers(L: *mut lua_State) -> c_int {
+    unsafe {
+        let Some(cap) = get_capability(L, 1) else {
+            return push_error(L, "invalid capability");
+        };
+
+        if ffi::lua_type(L, 2) != ffi::LUA_TSTRING {
+            return push_error(L, "callers requires symbol argument");
+        }
+        let symbol_ptr = ffi::lua_tostring(L, 2);
+        let symbol = CStr::from_ptr(symbol_ptr).to_string_lossy();
+
+        // Run call graph command for callers (prints to stdout)
+        let exit_code = rhizome_moss::commands::analyze::call_graph::cmd_call_graph(
+            &cap.root, &symbol, true,  // show_callers
+            false, // show_callees
+            false, // case_insensitive
+            false, // json
+        );
+
+        ffi::lua_createtable(L, 0, 1);
+        ffi::lua_pushinteger(L, exit_code as ffi::lua_Integer);
+        ffi::lua_setfield(L, -2, c"exit_code".as_ptr());
+
+        1
+    }
+}
+
+/// cap:callees(symbol) -> find callees of a symbol (requires moss index)
+unsafe extern "C-unwind" fn cap_callees(L: *mut lua_State) -> c_int {
+    unsafe {
+        let Some(cap) = get_capability(L, 1) else {
+            return push_error(L, "invalid capability");
+        };
+
+        if ffi::lua_type(L, 2) != ffi::LUA_TSTRING {
+            return push_error(L, "callees requires symbol argument");
+        }
+        let symbol_ptr = ffi::lua_tostring(L, 2);
+        let symbol = CStr::from_ptr(symbol_ptr).to_string_lossy();
+
+        // Run call graph command for callees (prints to stdout)
+        let exit_code = rhizome_moss::commands::analyze::call_graph::cmd_call_graph(
+            &cap.root, &symbol, false, // show_callers
+            true,  // show_callees
+            false, // case_insensitive
+            false, // json
+        );
 
         ffi::lua_createtable(L, 0, 1);
         ffi::lua_pushinteger(L, exit_code as ffi::lua_Integer);

@@ -70,7 +70,7 @@ local content = file:read("*a")
 - **spore-llm**: `llm.complete()`, `llm.chat()`, `llm.providers()`
 - **spore-embed**: `embed.generate(provider, model?, texts)`, `embed.start_generate()` (async), `embed.providers()`
 - **spore-libsql**: `libsql.open(path)`, `libsql.open_memory()`, `libsql.vector32()`, `libsql.vector64()`; Connection with `:execute()`, `:query()`, `:close()`
-- **spore-moss**: `moss.capability({root, mode})` returns capability with `:view()`, `:search()`, `:complexity()`, `:security()`, `:docs()`, `:files()`, `:duplicates()`, `:hotspots()`, `:stale_docs()`, `:check_refs()`, `:find()`, `:replace()`, etc.
+- **spore-moss**: `moss.capability({root, mode})` returns capability with `:view()`, `:search()`, `:complexity()`, `:security()`, `:docs()`, `:files()`, `:duplicates()`, `:hotspots()`, `:stale_docs()`, `:check_refs()`, `:ast()`, `:query()`, `:trace()`, `:callers()`, `:callees()`, `:find()`, `:replace()`, etc.
 - **spore-tools**: `tools.capability({root})` returns capability with `:run()`, `:fix()`, `:test_run()`, etc.
 - **spore-packages**: `packages.capability({root})` returns capability with `:query()`, `:dependencies()`, `:audit()`
 - **spore-sessions**: `sessions.parse()`, `sessions.list()`, `sessions.formats()`

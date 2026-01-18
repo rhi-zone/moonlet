@@ -59,8 +59,12 @@ Iris needs these capabilities for agent-authored insights:
 - [x] `cap:hotspots()` - Git churn hotspot analysis
 - [x] `cap:stale_docs()` - Find stale documentation
 - [x] `cap:check_refs()` - Check documentation references
+- [x] `cap:ast(path, opts?)` - AST inspection (sexp, json, or tree format)
+- [x] `cap:query(pattern, opts?)` - Tree-sitter/ast-grep queries
+- [x] `cap:trace(symbol, opts?)` - Value provenance tracing
+- [x] `cap:callers(symbol)` - Find callers (requires moss index)
+- [x] `cap:callees(symbol)` - Find callees (requires moss index)
 
 ### Future considerations
 
 - Batch edit support (`moss.edit.batch()`) - moss has BatchEdit for atomic multi-file edits
-- Call graph queries (`cap:callers()`, `cap:callees()`) - requires moss index
