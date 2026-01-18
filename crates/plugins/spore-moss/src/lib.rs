@@ -15,6 +15,11 @@
 //! - `cap:health(path?)` - Codebase health check
 //! - `cap:security()` - Security analysis (runs external tools like bandit)
 //! - `cap:docs(limit?)` - Documentation coverage analysis
+//! - `cap:files(limit?)` - Large files analysis
+//! - `cap:duplicates(opts?)` - Duplicate function detection
+//! - `cap:hotspots()` - Git churn hotspot analysis
+//! - `cap:stale_docs()` - Find stale documentation
+//! - `cap:check_refs()` - Check documentation references
 //!
 //! ## Capability Methods - Editing
 //! - `cap:find(path, name, opts?)` - Find a symbol by name
@@ -178,6 +183,21 @@ unsafe fn register_capability_metatable(L: *mut lua_State) {
 
             ffi::lua_pushcclosure(L, cap_docs, 0);
             ffi::lua_setfield(L, -2, c"docs".as_ptr());
+
+            ffi::lua_pushcclosure(L, cap_files, 0);
+            ffi::lua_setfield(L, -2, c"files".as_ptr());
+
+            ffi::lua_pushcclosure(L, cap_duplicates, 0);
+            ffi::lua_setfield(L, -2, c"duplicates".as_ptr());
+
+            ffi::lua_pushcclosure(L, cap_hotspots, 0);
+            ffi::lua_setfield(L, -2, c"hotspots".as_ptr());
+
+            ffi::lua_pushcclosure(L, cap_stale_docs, 0);
+            ffi::lua_setfield(L, -2, c"stale_docs".as_ptr());
+
+            ffi::lua_pushcclosure(L, cap_check_refs, 0);
+            ffi::lua_setfield(L, -2, c"check_refs".as_ptr());
 
             // Editing
             ffi::lua_pushcclosure(L, cap_find, 0);
@@ -780,6 +800,186 @@ unsafe extern "C-unwind" fn cap_docs(L: *mut lua_State) -> c_int {
             ffi::lua_rawseti(L, -2, (i + 1) as ffi::lua_Integer);
         }
         ffi::lua_setfield(L, -2, c"worst_files".as_ptr());
+
+        1
+    }
+}
+
+/// cap:files(limit?) -> large files report
+unsafe extern "C-unwind" fn cap_files(L: *mut lua_State) -> c_int {
+    unsafe {
+        let Some(cap) = get_capability(L, 1) else {
+            return push_error(L, "invalid capability");
+        };
+
+        let limit = if ffi::lua_type(L, 2) == ffi::LUA_TNUMBER {
+            ffi::lua_tointeger(L, 2) as usize
+        } else {
+            20 // Default limit
+        };
+
+        let report = rhizome_moss::commands::analyze::files::analyze_files(&cap.root, limit, &[]);
+
+        ffi::lua_createtable(L, 0, 3);
+
+        ffi::lua_pushinteger(L, report.total_lines as ffi::lua_Integer);
+        ffi::lua_setfield(L, -2, c"total_lines".as_ptr());
+
+        // Files array
+        ffi::lua_createtable(L, report.files.len() as c_int, 0);
+        for (i, f) in report.files.iter().enumerate() {
+            ffi::lua_createtable(L, 0, 3);
+
+            let c_path = CString::new(f.path.as_str()).unwrap();
+            ffi::lua_pushstring(L, c_path.as_ptr());
+            ffi::lua_setfield(L, -2, c"path".as_ptr());
+
+            ffi::lua_pushinteger(L, f.lines as ffi::lua_Integer);
+            ffi::lua_setfield(L, -2, c"lines".as_ptr());
+
+            let c_lang = CString::new(f.language.as_str()).unwrap();
+            ffi::lua_pushstring(L, c_lang.as_ptr());
+            ffi::lua_setfield(L, -2, c"language".as_ptr());
+
+            ffi::lua_rawseti(L, -2, (i + 1) as ffi::lua_Integer);
+        }
+        ffi::lua_setfield(L, -2, c"files".as_ptr());
+
+        // By language
+        ffi::lua_createtable(L, 0, report.by_language.len() as c_int);
+        for (lang, lines) in &report.by_language {
+            ffi::lua_pushinteger(L, *lines as ffi::lua_Integer);
+            let c_lang = CString::new(lang.as_str()).unwrap();
+            ffi::lua_setfield(L, -2, c_lang.as_ptr());
+        }
+        ffi::lua_setfield(L, -2, c"by_language".as_ptr());
+
+        1
+    }
+}
+
+/// cap:duplicates(opts?) -> duplicate functions result
+/// opts: { min_lines = 5, elide_identifiers = true, elide_literals = false }
+unsafe extern "C-unwind" fn cap_duplicates(L: *mut lua_State) -> c_int {
+    unsafe {
+        let Some(cap) = get_capability(L, 1) else {
+            return push_error(L, "invalid capability");
+        };
+
+        // Parse options
+        let (min_lines, elide_identifiers, elide_literals) =
+            if ffi::lua_type(L, 2) == ffi::LUA_TTABLE {
+                ffi::lua_getfield(L, 2, c"min_lines".as_ptr());
+                let min = if ffi::lua_type(L, -1) == ffi::LUA_TNUMBER {
+                    ffi::lua_tointeger(L, -1) as usize
+                } else {
+                    5
+                };
+                ffi::lua_pop(L, 1);
+
+                ffi::lua_getfield(L, 2, c"elide_identifiers".as_ptr());
+                let elide_id = if ffi::lua_type(L, -1) == ffi::LUA_TBOOLEAN {
+                    ffi::lua_toboolean(L, -1) != 0
+                } else {
+                    true
+                };
+                ffi::lua_pop(L, 1);
+
+                ffi::lua_getfield(L, 2, c"elide_literals".as_ptr());
+                let elide_lit = if ffi::lua_type(L, -1) == ffi::LUA_TBOOLEAN {
+                    ffi::lua_toboolean(L, -1) != 0
+                } else {
+                    false
+                };
+                ffi::lua_pop(L, 1);
+
+                (min, elide_id, elide_lit)
+            } else {
+                (5, true, false)
+            };
+
+        // Run duplicate detection (runs cmd which prints but returns result)
+        let result =
+            rhizome_moss::commands::analyze::duplicates::cmd_duplicate_functions_with_count(
+                &cap.root,
+                elide_identifiers,
+                elide_literals,
+                false, // show_source
+                min_lines,
+                false, // json (we capture the count)
+                None,  // filter
+            );
+
+        ffi::lua_createtable(L, 0, 2);
+
+        ffi::lua_pushinteger(L, result.group_count as ffi::lua_Integer);
+        ffi::lua_setfield(L, -2, c"group_count".as_ptr());
+
+        ffi::lua_pushinteger(L, result.exit_code as ffi::lua_Integer);
+        ffi::lua_setfield(L, -2, c"exit_code".as_ptr());
+
+        1
+    }
+}
+
+/// cap:hotspots() -> git churn hotspot analysis
+/// Note: Requires git repository, runs git log internally
+unsafe extern "C-unwind" fn cap_hotspots(L: *mut lua_State) -> c_int {
+    unsafe {
+        let Some(cap) = get_capability(L, 1) else {
+            return push_error(L, "invalid capability");
+        };
+
+        // Check if it's a git repo
+        let git_dir = cap.root.join(".git");
+        if !git_dir.exists() {
+            return push_error(L, "not a git repository");
+        }
+
+        // Run hotspots analysis (this prints to stdout, we just capture exit code)
+        // For proper data capture, we'd need to refactor moss to return structured data
+        let exit_code =
+            rhizome_moss::commands::analyze::hotspots::cmd_hotspots(&cap.root, &[], false);
+
+        ffi::lua_createtable(L, 0, 1);
+        ffi::lua_pushinteger(L, exit_code as ffi::lua_Integer);
+        ffi::lua_setfield(L, -2, c"exit_code".as_ptr());
+
+        1
+    }
+}
+
+/// cap:stale_docs() -> find stale documentation
+unsafe extern "C-unwind" fn cap_stale_docs(L: *mut lua_State) -> c_int {
+    unsafe {
+        let Some(cap) = get_capability(L, 1) else {
+            return push_error(L, "invalid capability");
+        };
+
+        let exit_code =
+            rhizome_moss::commands::analyze::stale_docs::cmd_stale_docs(&cap.root, false);
+
+        ffi::lua_createtable(L, 0, 1);
+        ffi::lua_pushinteger(L, exit_code as ffi::lua_Integer);
+        ffi::lua_setfield(L, -2, c"exit_code".as_ptr());
+
+        1
+    }
+}
+
+/// cap:check_refs() -> check documentation references
+unsafe extern "C-unwind" fn cap_check_refs(L: *mut lua_State) -> c_int {
+    unsafe {
+        let Some(cap) = get_capability(L, 1) else {
+            return push_error(L, "invalid capability");
+        };
+
+        let exit_code =
+            rhizome_moss::commands::analyze::check_refs::cmd_check_refs(&cap.root, false);
+
+        ffi::lua_createtable(L, 0, 1);
+        ffi::lua_pushinteger(L, exit_code as ffi::lua_Integer);
+        ffi::lua_setfield(L, -2, c"exit_code".as_ptr());
 
         1
     }

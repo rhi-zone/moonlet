@@ -54,9 +54,13 @@ Iris needs these capabilities for agent-authored insights:
 
 - [x] `cap:security()` - Security analysis (runs bandit for Python, graceful fallback if not installed)
 - [x] `cap:docs(limit?)` - Documentation coverage analysis (per-language breakdown, worst files)
+- [x] `cap:files(limit?)` - Large files analysis (by lines, by language)
+- [x] `cap:duplicates(opts?)` - Duplicate function detection
+- [x] `cap:hotspots()` - Git churn hotspot analysis
+- [x] `cap:stale_docs()` - Find stale documentation
+- [x] `cap:check_refs()` - Check documentation references
 
 ### Future considerations
 
 - Batch edit support (`moss.edit.batch()`) - moss has BatchEdit for atomic multi-file edits
-- Call graph queries (`cap:callers()`, `cap:callees()`) - requires index
-- Duplicate detection (`cap:duplicates()`) - requires index
+- Call graph queries (`cap:callers()`, `cap:callees()`) - requires moss index
