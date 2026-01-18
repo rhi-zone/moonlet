@@ -55,10 +55,6 @@ struct PluginsConfig {
     #[serde(default)]
     llm: bool,
     #[serde(default)]
-    embed: bool,
-    #[serde(default)]
-    libsql: bool,
-    #[serde(default)]
     moss: bool,
     #[serde(default)]
     sessions: bool,
@@ -194,30 +190,6 @@ fn run(project_path: &Path, entry_override: Option<&Path>) -> Result<(), String>
         runtime
             .load_plugin("llm")
             .map_err(|e| format!("Failed to load llm plugin: {}", e))?;
-        // Expose as spore.llm for sandboxed access
-        runtime
-            .expose_plugin("llm")
-            .map_err(|e| format!("Failed to expose llm plugin: {}", e))?;
-    }
-
-    if config.plugins.embed {
-        runtime
-            .load_plugin("embed")
-            .map_err(|e| format!("Failed to load embed plugin: {}", e))?;
-        // Expose as spore.embed for sandboxed access
-        runtime
-            .expose_plugin("embed")
-            .map_err(|e| format!("Failed to expose embed plugin: {}", e))?;
-    }
-
-    if config.plugins.libsql {
-        runtime
-            .load_plugin("libsql")
-            .map_err(|e| format!("Failed to load libsql plugin: {}", e))?;
-        // Expose as spore.libsql for sandboxed access
-        runtime
-            .expose_plugin("libsql")
-            .map_err(|e| format!("Failed to expose libsql plugin: {}", e))?;
     }
 
     if config.plugins.moss {
@@ -230,10 +202,6 @@ fn run(project_path: &Path, entry_override: Option<&Path>) -> Result<(), String>
         runtime
             .load_plugin("sessions")
             .map_err(|e| format!("Failed to load sessions plugin: {}", e))?;
-        // Expose as spore.sessions for sandboxed access
-        runtime
-            .expose_plugin("sessions")
-            .map_err(|e| format!("Failed to expose sessions plugin: {}", e))?;
     }
 
     if config.plugins.tools {
@@ -430,8 +398,6 @@ entry = "main.lua"
 [plugins]
 fs = false
 llm = false
-embed = false
-libsql = false
 moss = false
 sessions = false
 tools = false
