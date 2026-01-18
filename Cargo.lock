@@ -2617,7 +2617,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6db2770f06117d490610c7488547d543617b21bfa07796d7a12f6f1bd53850d1"
 dependencies = [
  "rand_chacha 0.9.0",
- "rand_core 0.9.3",
+ "rand_core 0.9.5",
 ]
 
 [[package]]
@@ -2637,7 +2637,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d3022b5f1df60f26e1ffddd6c66e8aa15de382ae63b3a0c1bfc0e4d3e3f325cb"
 dependencies = [
  "ppv-lite86",
- "rand_core 0.9.3",
+ "rand_core 0.9.5",
 ]
 
 [[package]]
@@ -2651,9 +2651,9 @@ dependencies = [
 
 [[package]]
 name = "rand_core"
-version = "0.9.3"
+version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "99d9a13982dcf210057a8a78572b2217b667c3beacbf3a0d8b454f6f82837d38"
+checksum = "76afc826de14238e6e8c374ddcc1fa19e374fd8dd986b0d2af0d02377261d83c"
 dependencies = [
  "getrandom 0.3.4",
 ]
@@ -2999,12 +2999,7 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "mlua",
- "rhizome-spore-llm",
  "rhizome-spore-lua",
- "rhizome-spore-moss",
- "rhizome-spore-moss-packages",
- "rhizome-spore-moss-sessions",
- "rhizome-spore-moss-tools",
  "schemars 0.8.22",
  "serde",
  "serde_json",
@@ -3037,11 +3032,10 @@ dependencies = [
 name = "rhizome-spore-llm"
 version = "0.1.0"
 dependencies = [
- "dotenvy",
  "mlua",
  "reqwest",
- "rhizome-spore-lua",
  "rig-core",
+ "serde_json",
  "tokio",
 ]
 
@@ -3065,37 +3059,33 @@ dependencies = [
  "mlua",
  "rhizome-moss",
  "rhizome-moss-languages",
- "rhizome-spore-lua",
  "serde_json",
 ]
 
 [[package]]
-name = "rhizome-spore-moss-packages"
+name = "rhizome-spore-packages"
 version = "0.1.0"
 dependencies = [
  "mlua",
  "rhizome-moss-packages",
- "rhizome-spore-lua",
  "serde_json",
 ]
 
 [[package]]
-name = "rhizome-spore-moss-sessions"
+name = "rhizome-spore-sessions"
 version = "0.1.0"
 dependencies = [
  "mlua",
  "rhizome-moss-sessions",
- "rhizome-spore-lua",
  "serde_json",
 ]
 
 [[package]]
-name = "rhizome-spore-moss-tools"
+name = "rhizome-spore-tools"
 version = "0.1.0"
 dependencies = [
  "mlua",
  "rhizome-moss-tools",
- "rhizome-spore-lua",
  "serde_json",
 ]
 

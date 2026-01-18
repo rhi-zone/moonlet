@@ -808,6 +808,14 @@ local fs = spore.capability("fs", {...})
 fs:revoke()  -- subsequent calls fail
 ```
 
+### 4. LuaJIT FFI vs C ABI
+Current design uses C ABI (libloading + Lua C API). LuaJIT FFI would reduce boilerplate and potentially improve performance, but:
+- Locks us to LuaJIT (development uncertain, though OpenResty fork exists)
+- FFI exposed to scripts would break capability security (direct C access bypasses sandbox)
+- Could use FFI internally (host-side only) while keeping C ABI for plugin boundary
+
+Worth revisiting if there are performance-critical paths where host-side FFI would help.
+
 ## Build System
 
 Plugin Cargo.toml:

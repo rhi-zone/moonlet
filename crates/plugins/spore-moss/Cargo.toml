@@ -1,14 +1,16 @@
 [package]
 name = "rhizome-spore-moss"
-description = "Moss integration for spore agents"
+description = "Code intelligence plugin for spore - view, search, analyze, edit"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
 
+[lib]
+crate-type = ["cdylib", "rlib"]
+
 [dependencies]
-rhizome-spore-lua.workspace = true
+mlua = { version = "0.10", features = ["luajit", "vendored"], default-features = false }
+serde_json = "1"
 rhizome-moss = { git = "https://github.com/rhizome-lab/moss" }
 rhizome-moss-languages = { git = "https://github.com/rhizome-lab/moss" }
-mlua.workspace = true
-serde_json.workspace = true

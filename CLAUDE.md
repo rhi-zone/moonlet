@@ -14,17 +14,21 @@ spore is an agentic AI framework spun out from moss. It provides:
 - **spore** = agency/execution (LLM calls, memory, running agents)
 - **moss** = intelligence (code analysis, session parsing, understanding)
 
-The projects are intentionally not hard-linked. Moss can extend spore via the Integration trait.
+The projects are intentionally not hard-linked. Moss extends spore via dynamically loaded C ABI plugins.
 
 ## Architecture
 
 ```
 crates/
 ├── spore-core/           # Memory store
-├── spore-lua/            # Lua runtime, Integration trait
-└── integrations/
-    ├── spore-llm/        # LLM client integration
-    └── spore-moss/       # Moss code intelligence integration
+├── spore-lua/            # Lua runtime, plugin loader
+└── plugins/              # Dynamic C ABI plugins (cdylib)
+    ├── spore-fs/         # Filesystem with capability-based security
+    ├── spore-llm/        # Multi-provider LLM client
+    ├── spore-moss/       # Code intelligence (view, search, analyze, edit)
+    ├── spore-sessions/   # AI session parsing
+    ├── spore-tools/      # Dev tools (linters, formatters, test runners)
+    └── spore-packages/   # Package ecosystem queries
 
 scripts/
 ├── agent.lua             # Main agent state machine
@@ -37,6 +41,19 @@ scripts/
     └── roles.lua         # Role-specific configs
 ```
 
+## Plugin System
+
+Plugins are dynamically loaded shared libraries (`.so`/`.dylib`/`.dll`) that export:
+- `spore_plugin_info()` - Version and ABI info
+- `luaopen_spore_{name}()` - Lua module entry point
+
+Plugins use capability-based security. Scripts receive capabilities via `caps` table:
+```lua
+-- In main.lua, with caps.fs.project injected
+local file = caps.fs.project:open("src/main.rs", "r")
+local content = file:read("*a")
+```
+
 ## Key Types
 
 ### spore-core
@@ -45,15 +62,15 @@ scripts/
 
 ### spore-lua
 - `Runtime` - Lua execution environment
-- `Integration` - Trait for registering plugin modules into Lua
+- `PluginLoader` - Dynamic plugin discovery and loading
 
-### spore-llm
-- `Provider` - LLM provider enum (Anthropic, OpenAI, Gemini, etc.)
-- `LlmClient` - Multi-provider LLM client with complete/chat methods
-- `LlmIntegration` - Registers llm.complete, llm.chat, llm.providers, llm.provider_info
-
-### spore-moss
-- `MossIntegration` - Registers moss.view, moss.edit, moss.analyze.*, moss.search
+### Plugins
+- **spore-llm**: `llm.complete()`, `llm.chat()`, `llm.providers()`
+- **spore-moss**: `moss.capability({root, mode})` returns capability with `:view()`, `:search()`, `:complexity()`, `:find()`, `:replace()`, etc.
+- **spore-tools**: `tools.capability({root})` returns capability with `:run()`, `:fix()`, `:test_run()`, etc.
+- **spore-packages**: `packages.capability({root})` returns capability with `:query()`, `:dependencies()`, `:audit()`
+- **spore-sessions**: `sessions.parse()`, `sessions.list()`, `sessions.formats()`
+- **spore-fs**: `fs.capability({path, mode})` returns capability with `:open()`, `:read()`, `:write()`, etc.
 
 ## Supported LLM Providers
 
@@ -86,4 +103,5 @@ From ecosystem-wide session analysis:
 
 - Crate names: `rhizome-spore-{name}`
 - Memory stored in `.spore/` directory
-- Integrations live in `crates/integrations/`
+- Plugins live in `crates/plugins/` (cdylib crates)
+- Plugins export `luaopen_spore_{name}()` C function

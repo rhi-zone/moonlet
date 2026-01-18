@@ -1,12 +1,7 @@
-//! spore CLI - Run Lua scripts with spore integrations.
+//! spore CLI - Run Lua scripts with plugin integrations.
 
 use clap::{Parser, Subcommand};
-use rhizome_spore_llm::LlmIntegration;
 use rhizome_spore_lua::Runtime;
-use rhizome_spore_moss::MossIntegration;
-use rhizome_spore_moss_packages::MossPackagesIntegration;
-use rhizome_spore_moss_sessions::MossSessionsIntegration;
-use rhizome_spore_moss_tools::MossToolsIntegration;
 use schemars::JsonSchema;
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
@@ -43,8 +38,6 @@ enum Commands {
 struct Config {
     project: ProjectConfig,
     #[serde(default)]
-    integrations: IntegrationsConfig,
-    #[serde(default)]
     plugins: PluginsConfig,
     #[serde(default)]
     caps: CapsConfig,
@@ -56,29 +49,31 @@ struct ProjectConfig {
 }
 
 #[derive(Debug, Default, Deserialize, JsonSchema)]
-struct IntegrationsConfig {
+struct PluginsConfig {
+    #[serde(default)]
+    fs: bool,
     #[serde(default)]
     llm: bool,
     #[serde(default)]
     moss: bool,
     #[serde(default)]
-    moss_sessions: bool,
+    sessions: bool,
     #[serde(default)]
-    moss_tools: bool,
+    tools: bool,
     #[serde(default)]
-    moss_packages: bool,
-}
-
-#[derive(Debug, Default, Deserialize, JsonSchema)]
-struct PluginsConfig {
-    #[serde(default)]
-    fs: bool,
+    packages: bool,
 }
 
 #[derive(Debug, Default, Deserialize, JsonSchema)]
 struct CapsConfig {
     #[serde(default)]
     fs: std::collections::HashMap<String, FsCapConfig>,
+    #[serde(default)]
+    moss: std::collections::HashMap<String, MossCapConfig>,
+    #[serde(default)]
+    tools: std::collections::HashMap<String, ToolsCapConfig>,
+    #[serde(default)]
+    packages: std::collections::HashMap<String, PackagesCapConfig>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -88,8 +83,29 @@ struct FsCapConfig {
     mode: String,
 }
 
+#[derive(Debug, Deserialize, JsonSchema)]
+struct MossCapConfig {
+    root: String,
+    #[serde(default = "default_rw_mode")]
+    mode: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+struct ToolsCapConfig {
+    root: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+struct PackagesCapConfig {
+    root: String,
+}
+
 fn default_mode() -> String {
     "r".to_string()
+}
+
+fn default_rw_mode() -> String {
+    "rw".to_string()
 }
 
 /// Handle --schema flag for Nursery integration.
@@ -163,42 +179,41 @@ fn run(project_path: &Path, entry_override: Option<&Path>) -> Result<(), String>
     // Add project-local plugin path
     runtime.add_plugin_path(project_path.join(".spore/plugins"));
 
-    // Register integrations based on config
-    if config.integrations.llm {
-        runtime
-            .register(&LlmIntegration::new())
-            .map_err(|e| format!("Failed to register llm integration: {}", e))?;
-    }
-
-    if config.integrations.moss {
-        runtime
-            .register(&MossIntegration::new(&project_path))
-            .map_err(|e| format!("Failed to register moss integration: {}", e))?;
-    }
-
-    if config.integrations.moss_sessions {
-        runtime
-            .register(&MossSessionsIntegration)
-            .map_err(|e| format!("Failed to register moss_sessions integration: {}", e))?;
-    }
-
-    if config.integrations.moss_tools {
-        runtime
-            .register(&MossToolsIntegration::new(&project_path))
-            .map_err(|e| format!("Failed to register moss_tools integration: {}", e))?;
-    }
-
-    if config.integrations.moss_packages {
-        runtime
-            .register(&MossPackagesIntegration::new(&project_path))
-            .map_err(|e| format!("Failed to register moss_packages integration: {}", e))?;
-    }
-
     // Load plugins based on config
     if config.plugins.fs {
         runtime
             .load_plugin("fs")
             .map_err(|e| format!("Failed to load fs plugin: {}", e))?;
+    }
+
+    if config.plugins.llm {
+        runtime
+            .load_plugin("llm")
+            .map_err(|e| format!("Failed to load llm plugin: {}", e))?;
+    }
+
+    if config.plugins.moss {
+        runtime
+            .load_plugin("moss")
+            .map_err(|e| format!("Failed to load moss plugin: {}", e))?;
+    }
+
+    if config.plugins.sessions {
+        runtime
+            .load_plugin("sessions")
+            .map_err(|e| format!("Failed to load sessions plugin: {}", e))?;
+    }
+
+    if config.plugins.tools {
+        runtime
+            .load_plugin("tools")
+            .map_err(|e| format!("Failed to load tools plugin: {}", e))?;
+    }
+
+    if config.plugins.packages {
+        runtime
+            .load_plugin("packages")
+            .map_err(|e| format!("Failed to load packages plugin: {}", e))?;
     }
 
     // Set project root in Lua
@@ -241,10 +256,8 @@ fn create_capabilities(
             .map_err(|e| format!("Failed to create fs caps table: {}", e))?;
 
         for (name, fs_config) in &caps_config.fs {
-            // Expand variables in path
             let expanded_path = expand_path(&fs_config.path, project_path);
 
-            // Create params table
             let params = lua
                 .create_table()
                 .map_err(|e| format!("Failed to create params: {}", e))?;
@@ -255,7 +268,6 @@ fn create_capabilities(
                 .set("mode", fs_config.mode.clone())
                 .map_err(|e| format!("Failed to set mode: {}", e))?;
 
-            // Create capability
             let cap = runtime
                 .create_capability("fs", params)
                 .map_err(|e| format!("Failed to create fs capability '{}': {}", name, e))?;
@@ -267,6 +279,96 @@ fn create_capabilities(
 
         caps.set("fs", fs_caps)
             .map_err(|e| format!("Failed to set fs caps: {}", e))?;
+    }
+
+    // Create moss capabilities
+    if !caps_config.moss.is_empty() {
+        let moss_caps = lua
+            .create_table()
+            .map_err(|e| format!("Failed to create moss caps table: {}", e))?;
+
+        for (name, moss_config) in &caps_config.moss {
+            let expanded_root = expand_path(&moss_config.root, project_path);
+
+            let params = lua
+                .create_table()
+                .map_err(|e| format!("Failed to create params: {}", e))?;
+            params
+                .set("root", expanded_root)
+                .map_err(|e| format!("Failed to set root: {}", e))?;
+            params
+                .set("mode", moss_config.mode.clone())
+                .map_err(|e| format!("Failed to set mode: {}", e))?;
+
+            let cap = runtime
+                .create_capability("moss", params)
+                .map_err(|e| format!("Failed to create moss capability '{}': {}", name, e))?;
+
+            moss_caps
+                .set(name.as_str(), cap)
+                .map_err(|e| format!("Failed to set capability: {}", e))?;
+        }
+
+        caps.set("moss", moss_caps)
+            .map_err(|e| format!("Failed to set moss caps: {}", e))?;
+    }
+
+    // Create tools capabilities
+    if !caps_config.tools.is_empty() {
+        let tools_caps = lua
+            .create_table()
+            .map_err(|e| format!("Failed to create tools caps table: {}", e))?;
+
+        for (name, tools_config) in &caps_config.tools {
+            let expanded_root = expand_path(&tools_config.root, project_path);
+
+            let params = lua
+                .create_table()
+                .map_err(|e| format!("Failed to create params: {}", e))?;
+            params
+                .set("root", expanded_root)
+                .map_err(|e| format!("Failed to set root: {}", e))?;
+
+            let cap = runtime
+                .create_capability("tools", params)
+                .map_err(|e| format!("Failed to create tools capability '{}': {}", name, e))?;
+
+            tools_caps
+                .set(name.as_str(), cap)
+                .map_err(|e| format!("Failed to set capability: {}", e))?;
+        }
+
+        caps.set("tools", tools_caps)
+            .map_err(|e| format!("Failed to set tools caps: {}", e))?;
+    }
+
+    // Create packages capabilities
+    if !caps_config.packages.is_empty() {
+        let packages_caps = lua
+            .create_table()
+            .map_err(|e| format!("Failed to create packages caps table: {}", e))?;
+
+        for (name, packages_config) in &caps_config.packages {
+            let expanded_root = expand_path(&packages_config.root, project_path);
+
+            let params = lua
+                .create_table()
+                .map_err(|e| format!("Failed to create params: {}", e))?;
+            params
+                .set("root", expanded_root)
+                .map_err(|e| format!("Failed to set root: {}", e))?;
+
+            let cap = runtime
+                .create_capability("packages", params)
+                .map_err(|e| format!("Failed to create packages capability '{}': {}", name, e))?;
+
+            packages_caps
+                .set(name.as_str(), cap)
+                .map_err(|e| format!("Failed to set capability: {}", e))?;
+        }
+
+        caps.set("packages", packages_caps)
+            .map_err(|e| format!("Failed to set packages caps: {}", e))?;
     }
 
     Ok(caps)
@@ -293,15 +395,13 @@ fn init_project(path: &Path) -> Result<(), String> {
 [project]
 entry = "main.lua"
 
-[integrations]
-llm = false
-moss = false
-moss_sessions = false
-moss_tools = false
-moss_packages = false
-
 [plugins]
 fs = false
+llm = false
+moss = false
+sessions = false
+tools = false
+packages = false
 
 # Capability configuration
 # Capabilities are created from plugin parameters and injected into scripts
@@ -310,6 +410,15 @@ fs = false
 # [caps.fs]
 # project = { path = "${PROJECT_ROOT}", mode = "rw" }
 # tmp = { path = "/tmp", mode = "rw" }
+
+# [caps.moss]
+# project = { root = "${PROJECT_ROOT}", mode = "rw" }
+
+# [caps.tools]
+# project = { root = "${PROJECT_ROOT}" }
+
+# [caps.packages]
+# project = { root = "${PROJECT_ROOT}" }
 "#;
 
     std::fs::write(spore_dir.join("config.toml"), config_content)

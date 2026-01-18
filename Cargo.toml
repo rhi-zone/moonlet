@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/spore", "crates/spore-core", "crates/spore-lua", "crates/integrations/*", "crates/plugins/*"]
+members = ["crates/spore", "crates/spore-core", "crates/spore-lua", "crates/plugins/*"]
 
 [workspace.package]
 version = "0.1.0"
@@ -13,11 +13,14 @@ repository = "https://github.com/rhizome-lab/spore"
 rhizome-spore = { path = "crates/spore" }
 rhizome-spore-core = { path = "crates/spore-core" }
 rhizome-spore-lua = { path = "crates/spore-lua" }
-rhizome-spore-moss = { path = "crates/integrations/spore-moss" }
-rhizome-spore-moss-sessions = { path = "crates/integrations/spore-moss-sessions" }
-rhizome-spore-moss-tools = { path = "crates/integrations/spore-moss-tools" }
-rhizome-spore-moss-packages = { path = "crates/integrations/spore-moss-packages" }
-rhizome-spore-llm = { path = "crates/integrations/spore-llm" }
+
+# Plugins (dynamically loaded C ABI)
+rhizome-spore-fs = { path = "crates/plugins/spore-fs" }
+rhizome-spore-llm = { path = "crates/plugins/spore-llm" }
+rhizome-spore-moss = { path = "crates/plugins/spore-moss" }
+rhizome-spore-sessions = { path = "crates/plugins/spore-sessions" }
+rhizome-spore-tools = { path = "crates/plugins/spore-tools" }
+rhizome-spore-packages = { path = "crates/plugins/spore-packages" }
 
 # Pith interfaces
 rhizome-pith-io = { git = "https://github.com/rhizome-lab/pith" }
