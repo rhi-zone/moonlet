@@ -101,6 +101,8 @@ struct CapsConfig {
     #[serde(default)]
     moss: std::collections::HashMap<String, MossCapConfig>,
     #[serde(default)]
+    sessions: std::collections::HashMap<String, SessionsCapConfig>,
+    #[serde(default)]
     tools: std::collections::HashMap<String, ToolsCapConfig>,
     #[serde(default)]
     packages: std::collections::HashMap<String, PackagesCapConfig>,
@@ -118,6 +120,11 @@ struct MossCapConfig {
     root: String,
     #[serde(default = "default_rw_mode")]
     mode: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+struct SessionsCapConfig {
+    root: String,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -351,6 +358,35 @@ fn create_capabilities(
             .map_err(|e| format!("Failed to set moss caps: {}", e))?;
     }
 
+    // Create sessions capabilities
+    if !caps_config.sessions.is_empty() {
+        let sessions_caps = lua
+            .create_table()
+            .map_err(|e| format!("Failed to create sessions caps table: {}", e))?;
+
+        for (name, sessions_config) in &caps_config.sessions {
+            let expanded_root = expand_path(&sessions_config.root, project_path);
+
+            let params = lua
+                .create_table()
+                .map_err(|e| format!("Failed to create params: {}", e))?;
+            params
+                .set("root", expanded_root)
+                .map_err(|e| format!("Failed to set root: {}", e))?;
+
+            let cap = runtime
+                .create_capability("sessions", params)
+                .map_err(|e| format!("Failed to create sessions capability '{}': {}", name, e))?;
+
+            sessions_caps
+                .set(name.as_str(), cap)
+                .map_err(|e| format!("Failed to set capability: {}", e))?;
+        }
+
+        caps.set("sessions", sessions_caps)
+            .map_err(|e| format!("Failed to set sessions caps: {}", e))?;
+    }
+
     // Create tools capabilities
     if !caps_config.tools.is_empty() {
         let tools_caps = lua
@@ -458,6 +494,9 @@ require_project = true    # Allow require("mymodule") from project directory
 
 # [caps.moss]
 # project = { root = "${PROJECT_ROOT}", mode = "rw" }
+
+# [caps.sessions]
+# project = { root = "${PROJECT_ROOT}" }
 
 # [caps.tools]
 # project = { root = "${PROJECT_ROOT}" }

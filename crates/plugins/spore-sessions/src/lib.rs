@@ -1,15 +1,18 @@
 //! Session parsing plugin for spore.
 //!
-//! Provides session parsing functions for AI conversation logs:
+//! Provides capability-based access to AI conversation session parsing.
 //!
-//! ## Parsing
-//! - `sessions.parse(path)` - Parse a session file into structured data
-//! - `sessions.parse_with_format(path, format)` - Parse with explicit format
+//! ## Capability Constructor
+//! - `sessions.capability({ root = "..." })` - Create sessions capability for a directory
 //!
-//! ## Discovery
-//! - `sessions.list(project?, format?)` - List session files
-//! - `sessions.formats()` - List available format names
-//! - `sessions.detect(path)` - Detect format of a session file
+//! ## Capability Methods
+//! - `cap:parse(path)` - Parse a session file into structured data
+//! - `cap:parse_with_format(path, format)` - Parse with explicit format
+//! - `cap:list(format?)` - List session files in capability root
+//! - `cap:detect(path)` - Detect format of a session file
+//!
+//! ## Module Functions
+//! - `sessions.formats()` - List available format names (no capability needed)
 
 #![allow(non_snake_case)] // Lua C API convention: L for lua_State
 
@@ -19,10 +22,13 @@ use rhizome_moss_sessions::{
     list_formats, parse_session, parse_session_with_format,
 };
 use std::ffi::{CStr, CString, c_char, c_int};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 /// Plugin ABI version.
 const ABI_VERSION: u32 = 1;
+
+/// Metatable name for SessionsCapability userdata.
+const SESSIONS_CAP_METATABLE: &[u8] = b"spore.sessions.Capability\0";
 
 /// Plugin info for version checking.
 #[repr(C)]
@@ -30,6 +36,65 @@ pub struct SporePluginInfo {
     pub name: *const c_char,
     pub version: *const c_char,
     pub abi_version: u32,
+}
+
+// ============================================================================
+// Capability
+// ============================================================================
+
+/// Sessions capability - provides access to session parsing for a directory root.
+#[derive(Debug, Clone)]
+pub struct SessionsCapability {
+    root: PathBuf,
+}
+
+impl SessionsCapability {
+    pub fn new(root: PathBuf) -> Self {
+        Self { root }
+    }
+
+    fn resolve_path(&self, rel_path: &str) -> Result<PathBuf, String> {
+        let path = Path::new(rel_path);
+        let full_path = if path.is_absolute() {
+            path.to_path_buf()
+        } else {
+            self.root.join(path)
+        };
+
+        // Canonicalize to resolve .. and symlinks
+        let canonical = if full_path.exists() {
+            full_path.canonicalize().map_err(|e| e.to_string())?
+        } else {
+            normalize_path(&full_path)
+        };
+
+        let root_canonical = if self.root.exists() {
+            self.root.canonicalize().map_err(|e| e.to_string())?
+        } else {
+            normalize_path(&self.root)
+        };
+
+        // Ensure path doesn't escape root
+        if !canonical.starts_with(&root_canonical) {
+            return Err("path escapes capability root".to_string());
+        }
+
+        Ok(canonical)
+    }
+}
+
+fn normalize_path(path: &Path) -> PathBuf {
+    let mut result = PathBuf::new();
+    for component in path.components() {
+        match component {
+            std::path::Component::ParentDir => {
+                result.pop();
+            }
+            std::path::Component::CurDir => {}
+            _ => result.push(component),
+        }
+    }
+    result
 }
 
 // ============================================================================
@@ -53,83 +118,178 @@ pub extern "C" fn spore_plugin_info() -> SporePluginInfo {
 #[unsafe(no_mangle)]
 pub unsafe extern "C-unwind" fn luaopen_spore_sessions(L: *mut lua_State) -> c_int {
     unsafe {
+        // Register capability metatable
+        register_capability_metatable(L);
+
         // Create module table
-        ffi::lua_createtable(L, 0, 5);
+        ffi::lua_createtable(L, 0, 2);
 
-        // sessions.parse(path)
-        ffi::lua_pushcclosure(L, sessions_parse, 0);
-        ffi::lua_setfield(L, -2, c"parse".as_ptr());
+        // sessions.capability({ root = "..." })
+        ffi::lua_pushcclosure(L, sessions_capability, 0);
+        ffi::lua_setfield(L, -2, c"capability".as_ptr());
 
-        // sessions.parse_with_format(path, format)
-        ffi::lua_pushcclosure(L, sessions_parse_with_format, 0);
-        ffi::lua_setfield(L, -2, c"parse_with_format".as_ptr());
-
-        // sessions.list(project?, format?)
-        ffi::lua_pushcclosure(L, sessions_list, 0);
-        ffi::lua_setfield(L, -2, c"list".as_ptr());
-
-        // sessions.formats()
+        // sessions.formats() - module-level, no capability needed
         ffi::lua_pushcclosure(L, sessions_formats, 0);
         ffi::lua_setfield(L, -2, c"formats".as_ptr());
-
-        // sessions.detect(path)
-        ffi::lua_pushcclosure(L, sessions_detect, 0);
-        ffi::lua_setfield(L, -2, c"detect".as_ptr());
 
         1 // Return module table
     }
 }
 
 // ============================================================================
-// Module functions
+// Capability metatable
 // ============================================================================
 
-/// sessions.parse(path) -> Session table
-unsafe extern "C-unwind" fn sessions_parse(L: *mut lua_State) -> c_int {
+unsafe fn register_capability_metatable(L: *mut lua_State) {
     unsafe {
-        if ffi::lua_type(L, 1) != ffi::LUA_TSTRING {
-            return push_error(L, "parse requires path argument");
-        }
-        let path_ptr = ffi::lua_tostring(L, 1);
-        let path = CStr::from_ptr(path_ptr).to_string_lossy();
+        if ffi::luaL_newmetatable(L, SESSIONS_CAP_METATABLE.as_ptr() as *const c_char) != 0 {
+            // __index table with methods
+            ffi::lua_createtable(L, 0, 4);
 
-        match parse_session(Path::new(path.as_ref())) {
-            Ok(session) => push_session(L, &session),
-            Err(e) => push_error(L, &format!("Parse error: {}", e)),
+            ffi::lua_pushcclosure(L, cap_parse, 0);
+            ffi::lua_setfield(L, -2, c"parse".as_ptr());
+
+            ffi::lua_pushcclosure(L, cap_parse_with_format, 0);
+            ffi::lua_setfield(L, -2, c"parse_with_format".as_ptr());
+
+            ffi::lua_pushcclosure(L, cap_list, 0);
+            ffi::lua_setfield(L, -2, c"list".as_ptr());
+
+            ffi::lua_pushcclosure(L, cap_detect, 0);
+            ffi::lua_setfield(L, -2, c"detect".as_ptr());
+
+            ffi::lua_setfield(L, -2, c"__index".as_ptr());
+
+            // __gc for cleanup (drop the Box)
+            ffi::lua_pushcclosure(L, cap_gc, 0);
+            ffi::lua_setfield(L, -2, c"__gc".as_ptr());
         }
+        ffi::lua_pop(L, 1);
     }
 }
 
-/// sessions.parse_with_format(path, format) -> Session table
-unsafe extern "C-unwind" fn sessions_parse_with_format(L: *mut lua_State) -> c_int {
+/// sessions.capability({ root = "..." }) -> SessionsCapability
+unsafe extern "C-unwind" fn sessions_capability(L: *mut lua_State) -> c_int {
     unsafe {
-        if ffi::lua_type(L, 1) != ffi::LUA_TSTRING {
-            return push_error(L, "parse_with_format requires path argument");
+        // Expect table argument
+        if ffi::lua_type(L, 1) != ffi::LUA_TTABLE {
+            return push_error(L, "capability requires table argument with 'root' field");
         }
-        let path_ptr = ffi::lua_tostring(L, 1);
-        let path = CStr::from_ptr(path_ptr).to_string_lossy();
+
+        // Get root field
+        ffi::lua_getfield(L, 1, c"root".as_ptr());
+        if ffi::lua_type(L, -1) != ffi::LUA_TSTRING {
+            return push_error(L, "capability requires 'root' field (string)");
+        }
+        let root_ptr = ffi::lua_tostring(L, -1);
+        let root = CStr::from_ptr(root_ptr).to_string_lossy();
+        ffi::lua_pop(L, 1);
+
+        let root_path = PathBuf::from(root.as_ref());
+
+        // Create capability userdata
+        let cap = SessionsCapability::new(root_path);
+        let ud = ffi::lua_newuserdata(L, std::mem::size_of::<SessionsCapability>())
+            as *mut SessionsCapability;
+        std::ptr::write(ud, cap);
+
+        // Set metatable
+        ffi::luaL_setmetatable(L, SESSIONS_CAP_METATABLE.as_ptr() as *const c_char);
+
+        1
+    }
+}
+
+/// __gc metamethod
+unsafe extern "C-unwind" fn cap_gc(L: *mut lua_State) -> c_int {
+    unsafe {
+        let ud = ffi::lua_touserdata(L, 1) as *mut SessionsCapability;
+        if !ud.is_null() {
+            std::ptr::drop_in_place(ud);
+        }
+        0
+    }
+}
+
+// ============================================================================
+// Capability methods
+// ============================================================================
+
+/// Get capability from first argument (self)
+unsafe fn get_capability(L: *mut lua_State) -> Result<&'static SessionsCapability, &'static str> {
+    unsafe {
+        let ud = ffi::luaL_checkudata(L, 1, SESSIONS_CAP_METATABLE.as_ptr() as *const c_char);
+        if ud.is_null() {
+            return Err("expected SessionsCapability");
+        }
+        Ok(&*(ud as *const SessionsCapability))
+    }
+}
+
+/// cap:parse(path) -> Session table
+unsafe extern "C-unwind" fn cap_parse(L: *mut lua_State) -> c_int {
+    unsafe {
+        let cap = match get_capability(L) {
+            Ok(c) => c,
+            Err(e) => return push_error(L, e),
+        };
 
         if ffi::lua_type(L, 2) != ffi::LUA_TSTRING {
-            return push_error(L, "parse_with_format requires format argument");
+            return push_error(L, "parse requires path argument");
         }
-        let format_ptr = ffi::lua_tostring(L, 2);
-        let format = CStr::from_ptr(format_ptr).to_string_lossy();
+        let path_ptr = ffi::lua_tostring(L, 2);
+        let path = CStr::from_ptr(path_ptr).to_string_lossy();
 
-        match parse_session_with_format(Path::new(path.as_ref()), &format) {
+        let resolved = match cap.resolve_path(&path) {
+            Ok(p) => p,
+            Err(e) => return push_error(L, &format!("path error: {}", e)),
+        };
+
+        match parse_session(&resolved) {
             Ok(session) => push_session(L, &session),
             Err(e) => push_error(L, &format!("Parse error: {}", e)),
         }
     }
 }
 
-/// sessions.list(project?, format?) -> array of {path, format, mtime}
-unsafe extern "C-unwind" fn sessions_list(L: *mut lua_State) -> c_int {
+/// cap:parse_with_format(path, format) -> Session table
+unsafe extern "C-unwind" fn cap_parse_with_format(L: *mut lua_State) -> c_int {
     unsafe {
-        let project = if ffi::lua_type(L, 1) == ffi::LUA_TSTRING {
-            let ptr = ffi::lua_tostring(L, 1);
-            Some(CStr::from_ptr(ptr).to_string_lossy().into_owned())
-        } else {
-            None
+        let cap = match get_capability(L) {
+            Ok(c) => c,
+            Err(e) => return push_error(L, e),
+        };
+
+        if ffi::lua_type(L, 2) != ffi::LUA_TSTRING {
+            return push_error(L, "parse_with_format requires path argument");
+        }
+        let path_ptr = ffi::lua_tostring(L, 2);
+        let path = CStr::from_ptr(path_ptr).to_string_lossy();
+
+        if ffi::lua_type(L, 3) != ffi::LUA_TSTRING {
+            return push_error(L, "parse_with_format requires format argument");
+        }
+        let format_ptr = ffi::lua_tostring(L, 3);
+        let format = CStr::from_ptr(format_ptr).to_string_lossy();
+
+        let resolved = match cap.resolve_path(&path) {
+            Ok(p) => p,
+            Err(e) => return push_error(L, &format!("path error: {}", e)),
+        };
+
+        match parse_session_with_format(&resolved, &format) {
+            Ok(session) => push_session(L, &session),
+            Err(e) => push_error(L, &format!("Parse error: {}", e)),
+        }
+    }
+}
+
+/// cap:list(format?) -> array of {path, format, mtime}
+unsafe extern "C-unwind" fn cap_list(L: *mut lua_State) -> c_int {
+    unsafe {
+        let cap = match get_capability(L) {
+            Ok(c) => c,
+            Err(e) => return push_error(L, e),
         };
 
         let format_name = if ffi::lua_type(L, 2) == ffi::LUA_TSTRING {
@@ -139,26 +299,30 @@ unsafe extern "C-unwind" fn sessions_list(L: *mut lua_State) -> c_int {
             None
         };
 
-        let project_path = project.as_deref().map(Path::new);
-
         ffi::lua_createtable(L, 0, 0);
         let mut idx = 1;
 
         if let Some(fmt_name) = format_name {
             if let Some(fmt) = get_format(&fmt_name) {
-                for file in fmt.list_sessions(project_path) {
-                    push_session_file(L, &file, fmt.name());
-                    ffi::lua_rawseti(L, -2, idx);
-                    idx += 1;
+                for file in fmt.list_sessions(Some(&cap.root)) {
+                    // Only include files within capability root
+                    if cap.resolve_path(&file.path.to_string_lossy()).is_ok() {
+                        push_session_file(L, &file, fmt.name());
+                        ffi::lua_rawseti(L, -2, idx);
+                        idx += 1;
+                    }
                 }
             }
         } else {
             for fmt_name in list_formats() {
                 if let Some(fmt) = get_format(fmt_name) {
-                    for file in fmt.list_sessions(project_path) {
-                        push_session_file(L, &file, fmt.name());
-                        ffi::lua_rawseti(L, -2, idx);
-                        idx += 1;
+                    for file in fmt.list_sessions(Some(&cap.root)) {
+                        // Only include files within capability root
+                        if cap.resolve_path(&file.path.to_string_lossy()).is_ok() {
+                            push_session_file(L, &file, fmt.name());
+                            ffi::lua_rawseti(L, -2, idx);
+                            idx += 1;
+                        }
                     }
                 }
             }
@@ -167,6 +331,43 @@ unsafe extern "C-unwind" fn sessions_list(L: *mut lua_State) -> c_int {
         1
     }
 }
+
+/// cap:detect(path) -> format name or nil
+unsafe extern "C-unwind" fn cap_detect(L: *mut lua_State) -> c_int {
+    unsafe {
+        let cap = match get_capability(L) {
+            Ok(c) => c,
+            Err(e) => return push_error(L, e),
+        };
+
+        if ffi::lua_type(L, 2) != ffi::LUA_TSTRING {
+            return push_error(L, "detect requires path argument");
+        }
+        let path_ptr = ffi::lua_tostring(L, 2);
+        let path = CStr::from_ptr(path_ptr).to_string_lossy();
+
+        let resolved = match cap.resolve_path(&path) {
+            Ok(p) => p,
+            Err(e) => return push_error(L, &format!("path error: {}", e)),
+        };
+
+        match detect_format(&resolved) {
+            Some(fmt) => {
+                let c_name = CString::new(fmt.name()).unwrap();
+                ffi::lua_pushstring(L, c_name.as_ptr());
+                1
+            }
+            None => {
+                ffi::lua_pushnil(L);
+                1
+            }
+        }
+    }
+}
+
+// ============================================================================
+// Module functions
+// ============================================================================
 
 /// sessions.formats() -> array of format names
 unsafe extern "C-unwind" fn sessions_formats(L: *mut lua_State) -> c_int {
@@ -181,29 +382,6 @@ unsafe extern "C-unwind" fn sessions_formats(L: *mut lua_State) -> c_int {
         }
 
         1
-    }
-}
-
-/// sessions.detect(path) -> format name or nil
-unsafe extern "C-unwind" fn sessions_detect(L: *mut lua_State) -> c_int {
-    unsafe {
-        if ffi::lua_type(L, 1) != ffi::LUA_TSTRING {
-            return push_error(L, "detect requires path argument");
-        }
-        let path_ptr = ffi::lua_tostring(L, 1);
-        let path = CStr::from_ptr(path_ptr).to_string_lossy();
-
-        match detect_format(Path::new(path.as_ref())) {
-            Some(fmt) => {
-                let c_name = CString::new(fmt.name()).unwrap();
-                ffi::lua_pushstring(L, c_name.as_ptr());
-                1
-            }
-            None => {
-                ffi::lua_pushnil(L);
-                1
-            }
-        }
     }
 }
 
