@@ -69,6 +69,17 @@ impl Runtime {
             .create_capability(&self.lua, plugin_name, params)
     }
 
+    /// Expose a loaded plugin module in the spore global table.
+    ///
+    /// This makes module-based plugins (like sessions, llm) accessible
+    /// in the sandboxed environment via `spore.{plugin_name}`.
+    pub fn expose_plugin(&self, plugin_name: &str) -> Result<()> {
+        let module = self.plugins.get_module(&self.lua, plugin_name)?;
+        let spore: Table = self.lua.globals().get("spore")?;
+        spore.set(plugin_name, module)?;
+        Ok(())
+    }
+
     /// Run a Lua script from a string.
     pub fn run(&self, code: &str) -> Result<()> {
         self.lua.load(code).exec()
@@ -163,4 +174,66 @@ fn register_core(lua: &Lua) -> Result<()> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_runtime_new() {
+        let runtime = Runtime::new().expect("should create runtime");
+        // Verify spore global exists
+        let spore: Table = runtime
+            .lua()
+            .globals()
+            .get("spore")
+            .expect("spore should exist");
+        assert!(spore.contains_key("poll").unwrap());
+    }
+
+    #[test]
+    fn test_expose_plugin_not_loaded() {
+        let runtime = Runtime::new().expect("should create runtime");
+        let result = runtime.expose_plugin("nonexistent");
+        assert!(result.is_err());
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("plugin not loaded")
+        );
+    }
+
+    #[test]
+    fn test_run_with_caps_has_spore_table() {
+        let runtime = Runtime::new().expect("should create runtime");
+        let caps = runtime.lua().create_table().expect("should create caps");
+
+        // Code that checks for spore table
+        let code = r#"
+            assert(spore ~= nil, "spore should exist")
+            assert(spore.poll ~= nil, "spore.poll should exist")
+        "#;
+
+        runtime
+            .run_with_caps(code, caps)
+            .expect("should run with caps");
+    }
+
+    #[test]
+    fn test_run_with_caps_sandbox_isolation() {
+        let runtime = Runtime::new().expect("should create runtime");
+        let caps = runtime.lua().create_table().expect("should create caps");
+
+        // Verify require is not available in sandbox
+        let code = r#"
+            local ok, err = pcall(function() require("os") end)
+            assert(not ok, "require should not be available in sandbox")
+        "#;
+
+        runtime
+            .run_with_caps(code, caps)
+            .expect("should run with caps");
+    }
 }
