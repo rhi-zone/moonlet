@@ -196,6 +196,19 @@ impl PluginLoader {
         Ok(())
     }
 
+    /// Get the module table for a loaded plugin.
+    ///
+    /// Returns the module table that was created when the plugin was loaded.
+    /// This is used to expose plugins to the require system.
+    pub fn get_module(&self, lua: &Lua, plugin_name: &str) -> LuaResult<Table> {
+        let plugin = self
+            .plugins
+            .get(plugin_name)
+            .ok_or_else(|| mlua::Error::external(format!("plugin not loaded: {}", plugin_name)))?;
+
+        lua.registry_value(&plugin.module_key)
+    }
+
     /// Create a capability from a loaded plugin.
     ///
     /// Calls the plugin's `capability(params)` function and returns the
@@ -277,5 +290,34 @@ mod tests {
         let custom = PathBuf::from("/custom/plugins");
         loader.add_search_path(custom.clone());
         assert_eq!(loader.search_paths[0], custom);
+    }
+
+    #[test]
+    fn test_get_module_not_loaded() {
+        let lua = Lua::new();
+        let loader = PluginLoader::new();
+        let result = loader.get_module(&lua, "nonexistent");
+        assert!(result.is_err());
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("plugin not loaded")
+        );
+    }
+
+    #[test]
+    fn test_create_capability_not_loaded() {
+        let lua = Lua::new();
+        let loader = PluginLoader::new();
+        let params = lua.create_table().unwrap();
+        let result = loader.create_capability(&lua, "nonexistent", params);
+        assert!(result.is_err());
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("plugin not loaded")
+        );
     }
 }

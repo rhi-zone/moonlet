@@ -1,7 +1,7 @@
 //! spore CLI - Run Lua scripts with plugin integrations.
 
 use clap::{Parser, Subcommand};
-use rhizome_spore_lua::Runtime;
+use rhizome_spore_lua::{RequireConfig, Runtime};
 use schemars::JsonSchema;
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
@@ -40,7 +40,37 @@ struct Config {
     #[serde(default)]
     plugins: PluginsConfig,
     #[serde(default)]
+    sandbox: SandboxConfig,
+    #[serde(default)]
     caps: CapsConfig,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+struct SandboxConfig {
+    /// Allow require() for Lua builtins (string, table, math, etc.)
+    /// These always take precedence and cannot be overridden.
+    #[serde(default = "default_true")]
+    require_builtins: bool,
+    /// Allow require() for loaded spore plugins (e.g., require("spore.sessions"))
+    #[serde(default = "default_true")]
+    require_plugins: bool,
+    /// Allow require() for project Lua modules (relative to project root)
+    #[serde(default = "default_true")]
+    require_project: bool,
+}
+
+impl Default for SandboxConfig {
+    fn default() -> Self {
+        Self {
+            require_builtins: true,
+            require_plugins: true,
+            require_project: true,
+        }
+    }
+}
+
+fn default_true() -> bool {
+    true
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -227,12 +257,20 @@ fn run(project_path: &Path, entry_override: Option<&Path>) -> Result<(), String>
     // Create capabilities from config
     let caps = create_capabilities(&runtime, &config.caps, &project_path)?;
 
+    // Create require config from sandbox settings
+    let require_config = RequireConfig {
+        builtins: config.sandbox.require_builtins,
+        plugins: config.sandbox.require_plugins,
+        project: config.sandbox.require_project,
+        project_root: Some(project_path.clone()),
+    };
+
     // Run the entry point with capabilities
     let code = std::fs::read_to_string(&entry)
         .map_err(|e| format!("Failed to read entry script: {}", e))?;
 
     runtime
-        .run_with_caps(&code, caps)
+        .run_with_caps(&code, caps, &require_config)
         .map_err(|e| format!("Script error: {}", e))?;
 
     Ok(())
@@ -402,6 +440,13 @@ moss = false
 sessions = false
 tools = false
 packages = false
+
+# Sandbox configuration for require()
+# Builtins always take precedence and cannot be overridden by user code
+[sandbox]
+require_builtins = true   # Allow require("string"), require("table"), etc.
+require_plugins = true    # Allow require("spore.sessions"), require("spore.llm"), etc.
+require_project = true    # Allow require("mymodule") from project directory
 
 # Capability configuration
 # Capabilities are created from plugin parameters and injected into scripts
