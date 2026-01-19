@@ -37,21 +37,16 @@
           installPhase = ''
             runHook preInstall
             mkdir -p $out/lib/spore/plugins
-            # Install plugin shared library - check CARGO_TARGET_DIR if set, else target/release
+            # Install plugin shared library
+            # rustPlatform uses --target, so look in target/<triple>/release
             libname="librhizome_spore_${builtins.replaceStrings ["-"] ["_"] name}"
-            targetDir="''${CARGO_TARGET_DIR:-target}/release"
-            echo "=== Debug: Looking for $libname in $targetDir ==="
-            ls -la "$targetDir/" 2>/dev/null | head -20 || echo "targetDir not found"
-            echo "=== Debug: Find results ==="
-            find . -name "$libname.*" 2>/dev/null || true
-            for ext in so dylib dll; do
-              if [ -f "$targetDir/$libname.$ext" ]; then
-                echo "Found: $targetDir/$libname.$ext"
-                cp "$targetDir/$libname.$ext" "$out/lib/spore/plugins/"
-              fi
+            for targetDir in target/*/release target/release; do
+              for ext in so dylib dll; do
+                if [ -f "$targetDir/$libname.$ext" ]; then
+                  cp "$targetDir/$libname.$ext" "$out/lib/spore/plugins/"
+                fi
+              done
             done
-            echo "=== Debug: Installed plugins ==="
-            ls -la "$out/lib/spore/plugins/" || true
             runHook postInstall
           '';
         };
