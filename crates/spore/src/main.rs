@@ -85,6 +85,10 @@ struct PluginsConfig {
     #[serde(default)]
     llm: bool,
     #[serde(default)]
+    embed: bool,
+    #[serde(default)]
+    libsql: bool,
+    #[serde(default)]
     moss: bool,
     #[serde(default)]
     sessions: bool,
@@ -106,6 +110,12 @@ struct CapsConfig {
     tools: std::collections::HashMap<String, ToolsCapConfig>,
     #[serde(default)]
     packages: std::collections::HashMap<String, PackagesCapConfig>,
+    #[serde(default)]
+    llm: std::collections::HashMap<String, LlmCapConfig>,
+    #[serde(default)]
+    embed: std::collections::HashMap<String, EmbedCapConfig>,
+    #[serde(default)]
+    libsql: std::collections::HashMap<String, LibsqlCapConfig>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -135,6 +145,28 @@ struct ToolsCapConfig {
 #[derive(Debug, Deserialize, JsonSchema)]
 struct PackagesCapConfig {
     root: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+struct LlmCapConfig {
+    providers: Vec<String>,
+    #[serde(default)]
+    models: std::collections::HashMap<String, Vec<String>>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+struct EmbedCapConfig {
+    providers: Vec<String>,
+    #[serde(default)]
+    models: std::collections::HashMap<String, Vec<String>>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+struct LibsqlCapConfig {
+    #[serde(default)]
+    path: Option<String>,
+    #[serde(default)]
+    allow_memory: bool,
 }
 
 fn default_mode() -> String {
@@ -227,6 +259,18 @@ fn run(project_path: &Path, entry_override: Option<&Path>) -> Result<(), String>
         runtime
             .load_plugin("llm")
             .map_err(|e| format!("Failed to load llm plugin: {}", e))?;
+    }
+
+    if config.plugins.embed {
+        runtime
+            .load_plugin("embed")
+            .map_err(|e| format!("Failed to load embed plugin: {}", e))?;
+    }
+
+    if config.plugins.libsql {
+        runtime
+            .load_plugin("libsql")
+            .map_err(|e| format!("Failed to load libsql plugin: {}", e))?;
     }
 
     if config.plugins.moss {
@@ -445,6 +489,156 @@ fn create_capabilities(
             .map_err(|e| format!("Failed to set packages caps: {}", e))?;
     }
 
+    // Create llm capabilities
+    if !caps_config.llm.is_empty() {
+        let llm_caps = lua
+            .create_table()
+            .map_err(|e| format!("Failed to create llm caps table: {}", e))?;
+
+        for (name, llm_config) in &caps_config.llm {
+            let params = lua
+                .create_table()
+                .map_err(|e| format!("Failed to create params: {}", e))?;
+
+            // Convert providers Vec to Lua table
+            let providers_table = lua
+                .create_table()
+                .map_err(|e| format!("Failed to create providers table: {}", e))?;
+            for (i, provider) in llm_config.providers.iter().enumerate() {
+                providers_table
+                    .set(i + 1, provider.as_str())
+                    .map_err(|e| format!("Failed to set provider: {}", e))?;
+            }
+            params
+                .set("providers", providers_table)
+                .map_err(|e| format!("Failed to set providers: {}", e))?;
+
+            // Convert models HashMap to Lua table
+            let models_table = lua
+                .create_table()
+                .map_err(|e| format!("Failed to create models table: {}", e))?;
+            for (provider, model_list) in &llm_config.models {
+                let model_array = lua
+                    .create_table()
+                    .map_err(|e| format!("Failed to create model array: {}", e))?;
+                for (i, model) in model_list.iter().enumerate() {
+                    model_array
+                        .set(i + 1, model.as_str())
+                        .map_err(|e| format!("Failed to set model: {}", e))?;
+                }
+                models_table
+                    .set(provider.as_str(), model_array)
+                    .map_err(|e| format!("Failed to set model list: {}", e))?;
+            }
+            params
+                .set("models", models_table)
+                .map_err(|e| format!("Failed to set models: {}", e))?;
+
+            let cap = runtime
+                .create_capability("llm", params)
+                .map_err(|e| format!("Failed to create llm capability '{}': {}", name, e))?;
+
+            llm_caps
+                .set(name.as_str(), cap)
+                .map_err(|e| format!("Failed to set capability: {}", e))?;
+        }
+
+        caps.set("llm", llm_caps)
+            .map_err(|e| format!("Failed to set llm caps: {}", e))?;
+    }
+
+    // Create embed capabilities
+    if !caps_config.embed.is_empty() {
+        let embed_caps = lua
+            .create_table()
+            .map_err(|e| format!("Failed to create embed caps table: {}", e))?;
+
+        for (name, embed_config) in &caps_config.embed {
+            let params = lua
+                .create_table()
+                .map_err(|e| format!("Failed to create params: {}", e))?;
+
+            // Convert providers Vec to Lua table
+            let providers_table = lua
+                .create_table()
+                .map_err(|e| format!("Failed to create providers table: {}", e))?;
+            for (i, provider) in embed_config.providers.iter().enumerate() {
+                providers_table
+                    .set(i + 1, provider.as_str())
+                    .map_err(|e| format!("Failed to set provider: {}", e))?;
+            }
+            params
+                .set("providers", providers_table)
+                .map_err(|e| format!("Failed to set providers: {}", e))?;
+
+            // Convert models HashMap to Lua table
+            let models_table = lua
+                .create_table()
+                .map_err(|e| format!("Failed to create models table: {}", e))?;
+            for (provider, model_list) in &embed_config.models {
+                let model_array = lua
+                    .create_table()
+                    .map_err(|e| format!("Failed to create model array: {}", e))?;
+                for (i, model) in model_list.iter().enumerate() {
+                    model_array
+                        .set(i + 1, model.as_str())
+                        .map_err(|e| format!("Failed to set model: {}", e))?;
+                }
+                models_table
+                    .set(provider.as_str(), model_array)
+                    .map_err(|e| format!("Failed to set model list: {}", e))?;
+            }
+            params
+                .set("models", models_table)
+                .map_err(|e| format!("Failed to set models: {}", e))?;
+
+            let cap = runtime
+                .create_capability("embed", params)
+                .map_err(|e| format!("Failed to create embed capability '{}': {}", name, e))?;
+
+            embed_caps
+                .set(name.as_str(), cap)
+                .map_err(|e| format!("Failed to set capability: {}", e))?;
+        }
+
+        caps.set("embed", embed_caps)
+            .map_err(|e| format!("Failed to set embed caps: {}", e))?;
+    }
+
+    // Create libsql capabilities
+    if !caps_config.libsql.is_empty() {
+        let libsql_caps = lua
+            .create_table()
+            .map_err(|e| format!("Failed to create libsql caps table: {}", e))?;
+
+        for (name, libsql_config) in &caps_config.libsql {
+            let params = lua
+                .create_table()
+                .map_err(|e| format!("Failed to create params: {}", e))?;
+
+            if let Some(ref path) = libsql_config.path {
+                let expanded_path = expand_path(path, project_path);
+                params
+                    .set("path", expanded_path)
+                    .map_err(|e| format!("Failed to set path: {}", e))?;
+            }
+            params
+                .set("allow_memory", libsql_config.allow_memory)
+                .map_err(|e| format!("Failed to set allow_memory: {}", e))?;
+
+            let cap = runtime
+                .create_capability("libsql", params)
+                .map_err(|e| format!("Failed to create libsql capability '{}': {}", name, e))?;
+
+            libsql_caps
+                .set(name.as_str(), cap)
+                .map_err(|e| format!("Failed to set capability: {}", e))?;
+        }
+
+        caps.set("libsql", libsql_caps)
+            .map_err(|e| format!("Failed to set libsql caps: {}", e))?;
+    }
+
     Ok(caps)
 }
 
@@ -472,6 +666,8 @@ entry = "main.lua"
 [plugins]
 fs = false
 llm = false
+embed = false
+libsql = false
 moss = false
 sessions = false
 tools = false
@@ -503,6 +699,18 @@ require_project = true    # Allow require("mymodule") from project directory
 
 # [caps.packages]
 # project = { root = "${PROJECT_ROOT}" }
+
+# [caps.llm]
+# project = { providers = ["anthropic", "openai"] }
+# budget = { providers = ["anthropic"], models = { anthropic = ["claude-haiku-3.5"] } }
+
+# [caps.embed]
+# project = { providers = ["openai", "cohere"] }
+
+# [caps.libsql]
+# data = { path = "${PROJECT_ROOT}/.spore/data" }
+# scratch = { allow_memory = true }
+# full = { path = "${PROJECT_ROOT}/data", allow_memory = true }
 "#;
 
     std::fs::write(spore_dir.join("config.toml"), config_content)

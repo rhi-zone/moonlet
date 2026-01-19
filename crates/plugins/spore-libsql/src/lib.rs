@@ -1,12 +1,15 @@
 //! LibSQL/SQLite plugin for spore with vector support.
 //!
-//! Provides direct database access with native vector operations:
+//! Provides capability-based database access with native vector operations.
 //!
-//! ## Module Functions
-//! - `libsql.open(path)` - Open a database connection (returns Connection)
-//! - `libsql.open_memory()` - Open an in-memory database
-//! - `libsql.vector32(array)` - Format a Lua array as vector32 SQL literal
-//! - `libsql.vector64(array)` - Format a Lua array as vector64 SQL literal
+//! ## Capability Constructor
+//! - `libsql.capability({ path = "...", allow_memory = true })` - Create database capability
+//!
+//! ## Capability Methods
+//! - `cap:open(rel_path)` - Open a file-backed database (path must be within capability root)
+//! - `cap:open_memory()` - Open an in-memory database (requires allow_memory = true)
+//! - `cap:vector32(array)` - Format a Lua array as vector32 SQL literal
+//! - `cap:vector64(array)` - Format a Lua array as vector64 SQL literal
 //!
 //! ## Connection Methods
 //! - `conn:execute(sql, params?)` - Execute SQL, returns rows affected
@@ -17,6 +20,7 @@
 
 use mlua::ffi::{self, lua_State};
 use std::ffi::{CStr, CString, c_char, c_int};
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 /// Plugin ABI version.
@@ -25,12 +29,90 @@ const ABI_VERSION: u32 = 1;
 /// Metatable name for Connection userdata.
 const CONN_METATABLE: &[u8] = b"spore.libsql.Connection\0";
 
+/// Metatable name for LibsqlCapability userdata.
+const CAP_METATABLE: &[u8] = b"spore.libsql.Capability\0";
+
 /// Plugin info for version checking.
 #[repr(C)]
 pub struct SporePluginInfo {
     pub name: *const c_char,
     pub version: *const c_char,
     pub abi_version: u32,
+}
+
+// ============================================================================
+// Capability
+// ============================================================================
+
+/// LibSQL capability - provides scoped database access.
+#[derive(Debug, Clone)]
+pub struct LibsqlCapability {
+    /// Root path for file-backed databases (None = file access disabled)
+    root: Option<PathBuf>,
+    /// Allow in-memory databases
+    allow_memory: bool,
+}
+
+impl LibsqlCapability {
+    pub fn new(root: Option<PathBuf>, allow_memory: bool) -> Self {
+        Self { root, allow_memory }
+    }
+
+    fn resolve_path(&self, rel_path: &str) -> Result<PathBuf, String> {
+        let root = self
+            .root
+            .as_ref()
+            .ok_or("capability does not allow file-backed databases")?;
+
+        let path = Path::new(rel_path);
+        let full_path = if path.is_absolute() {
+            path.to_path_buf()
+        } else {
+            root.join(path)
+        };
+
+        // Canonicalize to resolve .. and symlinks
+        let canonical = if full_path.exists() {
+            full_path.canonicalize().map_err(|e| e.to_string())?
+        } else {
+            // For new files, normalize the path and check parent exists
+            normalize_path(&full_path)
+        };
+
+        let root_canonical = if root.exists() {
+            root.canonicalize().map_err(|e| e.to_string())?
+        } else {
+            normalize_path(root)
+        };
+
+        // Ensure path doesn't escape root
+        if !canonical.starts_with(&root_canonical) {
+            return Err("path escapes capability root".to_string());
+        }
+
+        Ok(canonical)
+    }
+
+    fn can_open_memory(&self) -> Result<(), String> {
+        if !self.allow_memory {
+            return Err("capability does not allow in-memory databases".to_string());
+        }
+        Ok(())
+    }
+}
+
+fn normalize_path(path: &Path) -> PathBuf {
+    let mut result = PathBuf::new();
+    for component in path.components() {
+        match component {
+            std::path::Component::ParentDir => {
+                result.pop();
+            }
+            std::path::Component::CurDir => {}
+            _ => result.push(component),
+        }
+    }
+    result
 }
 
 // ============================================================================
@@ -87,24 +169,300 @@ pub extern "C" fn spore_plugin_info() -> SporePluginInfo {
 #[unsafe(no_mangle)]
 pub unsafe extern "C-unwind" fn luaopen_spore_libsql(L: *mut lua_State) -> c_int {
     unsafe {
-        // Register connection metatable
+        // Register metatables
+        register_capability_metatable(L);
         register_connection_metatable(L);
 
-        // Create module table
-        ffi::lua_createtable(L, 0, 4);
+        // Create module table with only capability constructor
+        ffi::lua_createtable(L, 0, 1);
 
-        ffi::lua_pushcclosure(L, libsql_open, 0);
-        ffi::lua_setfield(L, -2, c"open".as_ptr());
+        ffi::lua_pushcclosure(L, libsql_capability, 0);
+        ffi::lua_setfield(L, -2, c"capability".as_ptr());
 
-        ffi::lua_pushcclosure(L, libsql_open_memory, 0);
-        ffi::lua_setfield(L, -2, c"open_memory".as_ptr());
+        1
+    }
+}
 
-        ffi::lua_pushcclosure(L, libsql_vector32, 0);
-        ffi::lua_setfield(L, -2, c"vector32".as_ptr());
+// ============================================================================
+// Capability metatable
+// ============================================================================
 
-        ffi::lua_pushcclosure(L, libsql_vector64, 0);
-        ffi::lua_setfield(L, -2, c"vector64".as_ptr());
+unsafe fn register_capability_metatable(L: *mut lua_State) {
+    unsafe {
+        if ffi::luaL_newmetatable(L, CAP_METATABLE.as_ptr() as *const c_char) != 0 {
+            // __index table with methods
+            ffi::lua_createtable(L, 0, 4);
 
+            ffi::lua_pushcclosure(L, cap_open, 0);
+            ffi::lua_setfield(L, -2, c"open".as_ptr());
+
+            ffi::lua_pushcclosure(L, cap_open_memory, 0);
+            ffi::lua_setfield(L, -2, c"open_memory".as_ptr());
+
+            ffi::lua_pushcclosure(L, cap_vector32, 0);
+            ffi::lua_setfield(L, -2, c"vector32".as_ptr());
+
+            ffi::lua_pushcclosure(L, cap_vector64, 0);
+            ffi::lua_setfield(L, -2, c"vector64".as_ptr());
+
+            ffi::lua_setfield(L, -2, c"__index".as_ptr());
+
+            // __gc for cleanup
+            ffi::lua_pushcclosure(L, cap_gc, 0);
+            ffi::lua_setfield(L, -2, c"__gc".as_ptr());
+
+            // __tostring for debugging
+            ffi::lua_pushcclosure(L, cap_tostring, 0);
+            ffi::lua_setfield(L, -2, c"__tostring".as_ptr());
+        }
+        ffi::lua_pop(L, 1);
+    }
+}
+
+/// libsql.capability({ path = "...", allow_memory = true }) -> LibsqlCapability
+unsafe extern "C-unwind" fn libsql_capability(L: *mut lua_State) -> c_int {
+    unsafe {
+        // Expect table argument
+        if ffi::lua_type(L, 1) != ffi::LUA_TTABLE {
+            return push_error(
+                L,
+                "capability requires table argument with 'path' and/or 'allow_memory' fields",
+            );
+        }
+
+        // Get optional path field
+        ffi::lua_getfield(L, 1, c"path".as_ptr());
+        let root = if ffi::lua_type(L, -1) == ffi::LUA_TSTRING {
+            let path_ptr = ffi::lua_tostring(L, -1);
+            let path = CStr::from_ptr(path_ptr).to_string_lossy();
+            Some(PathBuf::from(path.as_ref()))
+        } else {
+            None
+        };
+        ffi::lua_pop(L, 1);
+
+        // Get optional allow_memory field
+        ffi::lua_getfield(L, 1, c"allow_memory".as_ptr());
+        let allow_memory = if ffi::lua_type(L, -1) == ffi::LUA_TBOOLEAN {
+            ffi::lua_toboolean(L, -1) != 0
+        } else {
+            false
+        };
+        ffi::lua_pop(L, 1);
+
+        // Must have at least one capability
+        if root.is_none() && !allow_memory {
+            return push_error(
+                L,
+                "capability must have either 'path' for file access or 'allow_memory = true'",
+            );
+        }
+
+        // Create capability userdata
+        let cap = LibsqlCapability::new(root, allow_memory);
+        let ud = ffi::lua_newuserdata(L, std::mem::size_of::<LibsqlCapability>())
+            as *mut LibsqlCapability;
+        std::ptr::write(ud, cap);
+
+        // Set metatable
+        ffi::luaL_setmetatable(L, CAP_METATABLE.as_ptr() as *const c_char);
+
+        1
+    }
+}
+
+/// __gc metamethod for capability
+unsafe extern "C-unwind" fn cap_gc(L: *mut lua_State) -> c_int {
+    unsafe {
+        let ud = ffi::lua_touserdata(L, 1) as *mut LibsqlCapability;
+        if !ud.is_null() {
+            std::ptr::drop_in_place(ud);
+        }
+        0
+    }
+}
+
+/// __tostring metamethod for capability
+unsafe extern "C-unwind" fn cap_tostring(L: *mut lua_State) -> c_int {
+    unsafe {
+        if let Ok(cap) = get_capability(L) {
+            let desc = match (&cap.root, cap.allow_memory) {
+                (Some(p), true) => format!("LibsqlCapability(path={}, memory=true)", p.display()),
+                (Some(p), false) => format!("LibsqlCapability(path={})", p.display()),
+                (None, true) => "LibsqlCapability(memory=true)".to_string(),
+                (None, false) => "LibsqlCapability(disabled)".to_string(),
+            };
+            let c_desc = CString::new(desc).unwrap();
+            ffi::lua_pushstring(L, c_desc.as_ptr());
+        } else {
+            ffi::lua_pushstring(L, c"LibsqlCapability(invalid)".as_ptr());
+        }
+        1
+    }
+}
+
+/// Get capability from first argument (self)
+unsafe fn get_capability(L: *mut lua_State) -> Result<&'static LibsqlCapability, &'static str> {
+    unsafe {
+        let ud = ffi::luaL_checkudata(L, 1, CAP_METATABLE.as_ptr() as *const c_char);
+        if ud.is_null() {
+            return Err("expected LibsqlCapability");
+        }
+        Ok(&*(ud as *const LibsqlCapability))
+    }
+}
+
+// ============================================================================
+// Capability methods
+// ============================================================================
+
+/// cap:open(path) -> Connection
+unsafe extern "C-unwind" fn cap_open(L: *mut lua_State) -> c_int {
+    unsafe {
+        let cap = match get_capability(L) {
+            Ok(c) => c,
+            Err(e) => return push_error(L, e),
+        };
+
+        if ffi::lua_type(L, 2) != ffi::LUA_TSTRING {
+            return push_error(L, "open requires path argument");
+        }
+        let path_ptr = ffi::lua_tostring(L, 2);
+        let path = CStr::from_ptr(path_ptr).to_string_lossy();
+
+        let resolved = match cap.resolve_path(&path) {
+            Ok(p) => p,
+            Err(e) => return push_error(L, &format!("path error: {}", e)),
+        };
+
+        let rt = match tokio::runtime::Runtime::new() {
+            Ok(rt) => rt,
+            Err(e) => return push_error(L, &format!("Failed to create runtime: {}", e)),
+        };
+
+        let result = rt.block_on(async {
+            let db = libsql::Builder::new_local(&resolved)
+                .build()
+                .await
+                .map_err(|e| format!("Failed to open database: {}", e))?;
+            let conn = db
+                .connect()
+                .map_err(|e| format!("Failed to connect: {}", e))?;
+            Ok::<_, String>(conn)
+        });
+
+        match result {
+            Ok(conn) => create_connection_userdata(L, Connection::new(conn)),
+            Err(e) => push_error(L, &e),
+        }
+    }
+}
+
+/// cap:open_memory() -> Connection
+unsafe extern "C-unwind" fn cap_open_memory(L: *mut lua_State) -> c_int {
+    unsafe {
+        let cap = match get_capability(L) {
+            Ok(c) => c,
+            Err(e) => return push_error(L, e),
+        };
+
+        if let Err(e) = cap.can_open_memory() {
+            return push_error(L, &e);
+        }
+
+        let rt = match tokio::runtime::Runtime::new() {
+            Ok(rt) => rt,
+            Err(e) => return push_error(L, &format!("Failed to create runtime: {}", e)),
+        };
+
+        let result = rt.block_on(async {
+            let db = libsql::Builder::new_local(":memory:")
+                .build()
+                .await
+                .map_err(|e| format!("Failed to open database: {}", e))?;
+            let conn = db
+                .connect()
+                .map_err(|e| format!("Failed to connect: {}", e))?;
+            Ok::<_, String>(conn)
+        });
+
+        match result {
+            Ok(conn) => create_connection_userdata(L, Connection::new(conn)),
+            Err(e) => push_error(L, &e),
+        }
+    }
+}
+
+/// cap:vector32(array) -> string formatted as vector32('[...]')
+unsafe extern "C-unwind" fn cap_vector32(L: *mut lua_State) -> c_int {
+    unsafe {
+        // Validate capability (self)
+        if get_capability(L).is_err() {
+            return push_error(L, "expected LibsqlCapability");
+        }
+
+        if ffi::lua_type(L, 2) != ffi::LUA_TTABLE {
+            return push_error(L, "vector32 requires array argument");
+        }
+
+        let mut values: Vec<f32> = Vec::new();
+        let len = ffi::lua_rawlen(L, 2);
+        for i in 1..=len {
+            ffi::lua_rawgeti(L, 2, i as ffi::lua_Integer);
+            if ffi::lua_type(L, -1) == ffi::LUA_TNUMBER {
+                values.push(ffi::lua_tonumber(L, -1) as f32);
+            }
+            ffi::lua_pop(L, 1);
+        }
+
+        let json = format!(
+            "[{}]",
+            values
+                .iter()
+                .map(|v| v.to_string())
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+        let result = format!("vector32('{}')", json);
+        let c_result = CString::new(result).unwrap();
+        ffi::lua_pushstring(L, c_result.as_ptr());
+        1
+    }
+}
+
+/// cap:vector64(array) -> string formatted as vector64('[...]')
+unsafe extern "C-unwind" fn cap_vector64(L: *mut lua_State) -> c_int {
+    unsafe {
+        // Validate capability (self)
+        if get_capability(L).is_err() {
+            return push_error(L, "expected LibsqlCapability");
+        }
+
+        if ffi::lua_type(L, 2) != ffi::LUA_TTABLE {
+            return push_error(L, "vector64 requires array argument");
+        }
+
+        let mut values: Vec<f64> = Vec::new();
+        let len = ffi::lua_rawlen(L, 2);
+        for i in 1..=len {
+            ffi::lua_rawgeti(L, 2, i as ffi::lua_Integer);
+            if ffi::lua_type(L, -1) == ffi::LUA_TNUMBER {
+                values.push(ffi::lua_tonumber(L, -1));
+            }
+            ffi::lua_pop(L, 1);
+        }
+
+        let json = format!(
+            "[{}]",
+            values
+                .iter()
+                .map(|v| v.to_string())
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+        let result = format!("vector64('{}')", json);
+        let c_result = CString::new(result).unwrap();
+        ffi::lua_pushstring(L, c_result.as_ptr());
         1
     }
 }
@@ -136,132 +494,6 @@ unsafe fn register_connection_metatable(L: *mut lua_State) {
             ffi::lua_setfield(L, -2, c"__tostring".as_ptr());
         }
         ffi::lua_pop(L, 1);
-    }
-}
-
-// ============================================================================
-// Module functions
-// ============================================================================
-
-/// libsql.open(path) -> Connection
-unsafe extern "C-unwind" fn libsql_open(L: *mut lua_State) -> c_int {
-    unsafe {
-        if ffi::lua_type(L, 1) != ffi::LUA_TSTRING {
-            return push_error(L, "open requires path argument");
-        }
-        let path_ptr = ffi::lua_tostring(L, 1);
-        let path = CStr::from_ptr(path_ptr).to_string_lossy();
-
-        let rt = match tokio::runtime::Runtime::new() {
-            Ok(rt) => rt,
-            Err(e) => return push_error(L, &format!("Failed to create runtime: {}", e)),
-        };
-
-        let result = rt.block_on(async {
-            let db = libsql::Builder::new_local(&*path)
-                .build()
-                .await
-                .map_err(|e| format!("Failed to open database: {}", e))?;
-            let conn = db
-                .connect()
-                .map_err(|e| format!("Failed to connect: {}", e))?;
-            Ok::<_, String>(conn)
-        });
-
-        match result {
-            Ok(conn) => create_connection_userdata(L, Connection::new(conn)),
-            Err(e) => push_error(L, &e),
-        }
-    }
-}
-
-/// libsql.open_memory() -> Connection
-unsafe extern "C-unwind" fn libsql_open_memory(L: *mut lua_State) -> c_int {
-    unsafe {
-        let rt = match tokio::runtime::Runtime::new() {
-            Ok(rt) => rt,
-            Err(e) => return push_error(L, &format!("Failed to create runtime: {}", e)),
-        };
-
-        let result = rt.block_on(async {
-            let db = libsql::Builder::new_local(":memory:")
-                .build()
-                .await
-                .map_err(|e| format!("Failed to open database: {}", e))?;
-            let conn = db
-                .connect()
-                .map_err(|e| format!("Failed to connect: {}", e))?;
-            Ok::<_, String>(conn)
-        });
-
-        match result {
-            Ok(conn) => create_connection_userdata(L, Connection::new(conn)),
-            Err(e) => push_error(L, &e),
-        }
-    }
-}
-
-/// libsql.vector32(array) -> string formatted as vector32('[...]')
-unsafe extern "C-unwind" fn libsql_vector32(L: *mut lua_State) -> c_int {
-    unsafe {
-        if ffi::lua_type(L, 1) != ffi::LUA_TTABLE {
-            return push_error(L, "vector32 requires array argument");
-        }
-
-        let mut values: Vec<f32> = Vec::new();
-        let len = ffi::lua_rawlen(L, 1);
-        for i in 1..=len {
-            ffi::lua_rawgeti(L, 1, i as ffi::lua_Integer);
-            if ffi::lua_type(L, -1) == ffi::LUA_TNUMBER {
-                values.push(ffi::lua_tonumber(L, -1) as f32);
-            }
-            ffi::lua_pop(L, 1);
-        }
-
-        let json = format!(
-            "[{}]",
-            values
-                .iter()
-                .map(|v| v.to_string())
-                .collect::<Vec<_>>()
-                .join(", ")
-        );
-        let result = format!("vector32('{}')", json);
-        let c_result = CString::new(result).unwrap();
-        ffi::lua_pushstring(L, c_result.as_ptr());
-        1
-    }
-}
-
-/// libsql.vector64(array) -> string formatted as vector64('[...]')
-unsafe extern "C-unwind" fn libsql_vector64(L: *mut lua_State) -> c_int {
-    unsafe {
-        if ffi::lua_type(L, 1) != ffi::LUA_TTABLE {
-            return push_error(L, "vector64 requires array argument");
-        }
-
-        let mut values: Vec<f64> = Vec::new();
-        let len = ffi::lua_rawlen(L, 1);
-        for i in 1..=len {
-            ffi::lua_rawgeti(L, 1, i as ffi::lua_Integer);
-            if ffi::lua_type(L, -1) == ffi::LUA_TNUMBER {
-                values.push(ffi::lua_tonumber(L, -1));
-            }
-            ffi::lua_pop(L, 1);
-        }
-
-        let json = format!(
-            "[{}]",
-            values
-                .iter()
-                .map(|v| v.to_string())
-                .collect::<Vec<_>>()
-                .join(", ")
-        );
-        let result = format!("vector64('{}')", json);
-        let c_result = CString::new(result).unwrap();
-        ffi::lua_pushstring(L, c_result.as_ptr());
-        1
     }
 }
 

@@ -67,13 +67,13 @@ local content = file:read("*a")
 - `PluginLoader` - Dynamic plugin discovery and loading
 
 ### Plugins
-- **spore-llm**: `llm.complete()`, `llm.chat()`, `llm.providers()`
-- **spore-embed**: `embed.generate(provider, model?, texts)`, `embed.start_generate()` (async), `embed.providers()`
-- **spore-libsql**: `libsql.open(path)`, `libsql.open_memory()`, `libsql.vector32()`, `libsql.vector64()`; Connection with `:execute()`, `:query()`, `:close()`
+- **spore-llm**: `llm.capability({providers, models?})` returns capability with `:providers()`, `:provider_info(name)`, `:complete(provider, model?, system?, prompt)`, `:chat(provider, model?, system?, message, history?)`, `:start_chat(...)` (async)
+- **spore-embed**: `embed.capability({providers, models?})` returns capability with `:providers()`, `:provider_info(name)`, `:generate(provider, model?, texts)`, `:start_generate(...)` (async)
+- **spore-libsql**: `libsql.capability({path?, allow_memory?})` returns capability with `:open(path)`, `:open_memory()`, `:vector32(array)`, `:vector64(array)`; Connection with `:execute()`, `:query()`, `:close()`
 - **spore-moss**: `moss.capability({root, mode})` returns capability with `:view()`, `:search()`, `:complexity()`, `:security()`, `:docs()`, `:files()`, `:duplicates()`, `:hotspots()`, `:stale_docs()`, `:check_refs()`, `:ast()`, `:query()`, `:trace()`, `:callers()`, `:callees()`, `:find()`, `:replace()`, etc.
 - **spore-tools**: `tools.capability({root})` returns capability with `:run()`, `:fix()`, `:test_run()`, etc.
 - **spore-packages**: `packages.capability({root})` returns capability with `:query()`, `:dependencies()`, `:audit()`
-- **spore-sessions**: `sessions.capability({root})` returns capability with `:parse()`, `:parse_with_format()`, `:list()`, `:detect()`; also `sessions.formats()` (no capability needed)
+- **spore-sessions**: `sessions.capability({root})` returns capability with `:parse()`, `:parse_with_format()`, `:list()`, `:detect()`, `:formats()`
 - **spore-fs**: `fs.capability({path, mode})` returns capability with `:open()`, `:read()`, `:write()`, etc.
 
 ## Supported LLM Providers

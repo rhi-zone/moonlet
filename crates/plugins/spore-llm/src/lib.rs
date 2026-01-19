@@ -1,13 +1,16 @@
 //! LLM client plugin for spore.
 //!
-//! Provides multi-provider LLM completions:
+//! Provides capability-based multi-provider LLM completions.
 //!
-//! ## Module Functions
-//! - `llm.providers()` - List available providers
-//! - `llm.provider_info(name)` - Get provider details
-//! - `llm.complete(provider, model?, system?, prompt, opts?)` - Single completion (blocking)
-//! - `llm.chat(provider, model?, system?, prompt, history, opts?)` - Chat with history (blocking)
-//! - `llm.start_chat(provider, model?, system?, prompt, history, opts?)` - Chat (async, returns Handle)
+//! ## Capability Constructor
+//! - `llm.capability({ providers = {...}, models = {...} })` - Create LLM capability
+//!
+//! ## Capability Methods
+//! - `cap:providers()` - List allowed providers
+//! - `cap:provider_info(name)` - Get provider details (if allowed)
+//! - `cap:complete(provider, model?, system?, prompt, opts?)` - Single completion (blocking)
+//! - `cap:chat(provider, model?, system?, prompt, history, opts?)` - Chat with history (blocking)
+//! - `cap:start_chat(provider, model?, system?, prompt, history, opts?)` - Chat (async, returns Handle)
 
 #![allow(non_snake_case)]
 
@@ -18,11 +21,15 @@ use rig::{
     completion::{Chat, Message},
     providers,
 };
+use std::collections::HashMap;
 use std::ffi::{CStr, CString, c_char, c_int};
 use std::sync::mpsc::channel;
 
 /// Plugin ABI version.
 const ABI_VERSION: u32 = 1;
+
+/// Metatable name for LlmCapability userdata.
+const CAP_METATABLE: &[u8] = b"spore.llm.Capability\0";
 
 /// Plugin info for version checking.
 #[repr(C)]
@@ -147,6 +154,56 @@ impl Provider {
 }
 
 // ============================================================================
+// Capability
+// ============================================================================
+
+/// LLM capability - provides scoped access to LLM providers.
+#[derive(Debug, Clone)]
+pub struct LlmCapability {
+    /// Allowed providers
+    providers: Vec<Provider>,
+    /// Optional model whitelist per provider (empty vec = all models allowed)
+    models: HashMap<String, Vec<String>>,
+}
+
+impl LlmCapability {
+    pub fn new(providers: Vec<Provider>, models: HashMap<String, Vec<String>>) -> Self {
+        Self { providers, models }
+    }
+
+    fn is_provider_allowed(&self, provider: &Provider) -> bool {
+        self.providers.contains(provider)
+    }
+
+    fn is_model_allowed(&self, provider: &Provider, model: &str) -> bool {
+        if let Some(allowed_models) = self.models.get(provider.name()) {
+            // Empty list means all models allowed for this provider
+            allowed_models.is_empty() || allowed_models.iter().any(|m| m == model)
+        } else {
+            // No entry means all models allowed
+            true
+        }
+    }
+
+    fn validate_request(&self, provider: &Provider, model: &str) -> Result<(), String> {
+        if !self.is_provider_allowed(provider) {
+            return Err(format!(
+                "provider '{}' not allowed by capability",
+                provider.name()
+            ));
+        }
+        if !self.is_model_allowed(provider, model) {
+            return Err(format!(
+                "model '{}' not allowed for provider '{}'",
+                model,
+                provider.name()
+            ));
+        }
+        Ok(())
+    }
+}
+
+// ============================================================================
 // Plugin exports
 // ============================================================================
 
@@ -166,42 +223,194 @@ pub extern "C" fn spore_plugin_info() -> SporePluginInfo {
 #[unsafe(no_mangle)]
 pub unsafe extern "C-unwind" fn luaopen_spore_llm(L: *mut lua_State) -> c_int {
     unsafe {
-        // Register Handle metatable (from spore-lua)
+        // Register metatables
         handle::register_handle_metatable(L);
+        register_capability_metatable(L);
 
-        // Create module table
-        ffi::lua_createtable(L, 0, 5);
+        // Create module table with only capability constructor
+        ffi::lua_createtable(L, 0, 1);
 
-        ffi::lua_pushcclosure(L, llm_providers, 0);
-        ffi::lua_setfield(L, -2, c"providers".as_ptr());
-
-        ffi::lua_pushcclosure(L, llm_provider_info, 0);
-        ffi::lua_setfield(L, -2, c"provider_info".as_ptr());
-
-        ffi::lua_pushcclosure(L, llm_complete, 0);
-        ffi::lua_setfield(L, -2, c"complete".as_ptr());
-
-        ffi::lua_pushcclosure(L, llm_chat, 0);
-        ffi::lua_setfield(L, -2, c"chat".as_ptr());
-
-        ffi::lua_pushcclosure(L, llm_start_chat, 0);
-        ffi::lua_setfield(L, -2, c"start_chat".as_ptr());
+        ffi::lua_pushcclosure(L, llm_capability, 0);
+        ffi::lua_setfield(L, -2, c"capability".as_ptr());
 
         1
     }
 }
 
 // ============================================================================
-// Module functions
+// Capability metatable
 // ============================================================================
 
-/// llm.providers() -> array of provider names
-unsafe extern "C-unwind" fn llm_providers(L: *mut lua_State) -> c_int {
+unsafe fn register_capability_metatable(L: *mut lua_State) {
     unsafe {
-        let providers = Provider::all();
-        ffi::lua_createtable(L, providers.len() as c_int, 0);
+        if ffi::luaL_newmetatable(L, CAP_METATABLE.as_ptr() as *const c_char) != 0 {
+            // __index table with methods
+            ffi::lua_createtable(L, 0, 5);
 
-        for (i, p) in providers.iter().enumerate() {
+            ffi::lua_pushcclosure(L, cap_providers, 0);
+            ffi::lua_setfield(L, -2, c"providers".as_ptr());
+
+            ffi::lua_pushcclosure(L, cap_provider_info, 0);
+            ffi::lua_setfield(L, -2, c"provider_info".as_ptr());
+
+            ffi::lua_pushcclosure(L, cap_complete, 0);
+            ffi::lua_setfield(L, -2, c"complete".as_ptr());
+
+            ffi::lua_pushcclosure(L, cap_chat, 0);
+            ffi::lua_setfield(L, -2, c"chat".as_ptr());
+
+            ffi::lua_pushcclosure(L, cap_start_chat, 0);
+            ffi::lua_setfield(L, -2, c"start_chat".as_ptr());
+
+            ffi::lua_setfield(L, -2, c"__index".as_ptr());
+
+            // __gc for cleanup
+            ffi::lua_pushcclosure(L, cap_gc, 0);
+            ffi::lua_setfield(L, -2, c"__gc".as_ptr());
+
+            // __tostring for debugging
+            ffi::lua_pushcclosure(L, cap_tostring, 0);
+            ffi::lua_setfield(L, -2, c"__tostring".as_ptr());
+        }
+        ffi::lua_pop(L, 1);
+    }
+}
+
+/// llm.capability({ providers = {...}, models = {...} }) -> LlmCapability
+unsafe extern "C-unwind" fn llm_capability(L: *mut lua_State) -> c_int {
+    unsafe {
+        // Expect table argument
+        if ffi::lua_type(L, 1) != ffi::LUA_TTABLE {
+            return push_error(
+                L,
+                "capability requires table argument with 'providers' field",
+            );
+        }
+
+        // Get required providers field
+        ffi::lua_getfield(L, 1, c"providers".as_ptr());
+        if ffi::lua_type(L, -1) != ffi::LUA_TTABLE {
+            return push_error(L, "capability requires 'providers' array");
+        }
+
+        let mut providers: Vec<Provider> = Vec::new();
+        let len = ffi::lua_rawlen(L, -1);
+        for i in 1..=len {
+            ffi::lua_rawgeti(L, -1, i as ffi::lua_Integer);
+            if ffi::lua_type(L, -1) == ffi::LUA_TSTRING {
+                let ptr = ffi::lua_tostring(L, -1);
+                let name = CStr::from_ptr(ptr).to_string_lossy();
+                if let Some(p) = Provider::parse(&name) {
+                    providers.push(p);
+                } else {
+                    ffi::lua_pop(L, 2);
+                    return push_error(L, &format!("unknown provider: {}", name));
+                }
+            }
+            ffi::lua_pop(L, 1);
+        }
+        ffi::lua_pop(L, 1);
+
+        if providers.is_empty() {
+            return push_error(L, "providers array cannot be empty");
+        }
+
+        // Get optional models field
+        let mut models: HashMap<String, Vec<String>> = HashMap::new();
+        ffi::lua_getfield(L, 1, c"models".as_ptr());
+        if ffi::lua_type(L, -1) == ffi::LUA_TTABLE {
+            // Iterate over the models table (provider_name -> array of models)
+            ffi::lua_pushnil(L);
+            while ffi::lua_next(L, -2) != 0 {
+                if ffi::lua_type(L, -2) == ffi::LUA_TSTRING {
+                    let key_ptr = ffi::lua_tostring(L, -2);
+                    let provider_name = CStr::from_ptr(key_ptr).to_string_lossy().into_owned();
+
+                    let mut model_list: Vec<String> = Vec::new();
+                    if ffi::lua_type(L, -1) == ffi::LUA_TTABLE {
+                        let model_len = ffi::lua_rawlen(L, -1);
+                        for j in 1..=model_len {
+                            ffi::lua_rawgeti(L, -1, j as ffi::lua_Integer);
+                            if ffi::lua_type(L, -1) == ffi::LUA_TSTRING {
+                                let model_ptr = ffi::lua_tostring(L, -1);
+                                model_list
+                                    .push(CStr::from_ptr(model_ptr).to_string_lossy().into_owned());
+                            }
+                            ffi::lua_pop(L, 1);
+                        }
+                    }
+                    models.insert(provider_name, model_list);
+                }
+                ffi::lua_pop(L, 1);
+            }
+        }
+        ffi::lua_pop(L, 1);
+
+        // Create capability userdata
+        let cap = LlmCapability::new(providers, models);
+        let ud =
+            ffi::lua_newuserdata(L, std::mem::size_of::<LlmCapability>()) as *mut LlmCapability;
+        std::ptr::write(ud, cap);
+
+        // Set metatable
+        ffi::luaL_setmetatable(L, CAP_METATABLE.as_ptr() as *const c_char);
+
+        1
+    }
+}
+
+/// __gc metamethod for capability
+unsafe extern "C-unwind" fn cap_gc(L: *mut lua_State) -> c_int {
+    unsafe {
+        let ud = ffi::lua_touserdata(L, 1) as *mut LlmCapability;
+        if !ud.is_null() {
+            std::ptr::drop_in_place(ud);
+        }
+        0
+    }
+}
+
+/// __tostring metamethod for capability
+unsafe extern "C-unwind" fn cap_tostring(L: *mut lua_State) -> c_int {
+    unsafe {
+        if let Ok(cap) = get_capability(L) {
+            let provider_names: Vec<&str> = cap.providers.iter().map(|p| p.name()).collect();
+            let desc = format!("LlmCapability(providers=[{}])", provider_names.join(", "));
+            let c_desc = CString::new(desc).unwrap();
+            ffi::lua_pushstring(L, c_desc.as_ptr());
+        } else {
+            ffi::lua_pushstring(L, c"LlmCapability(invalid)".as_ptr());
+        }
+        1
+    }
+}
+
+/// Get capability from first argument (self)
+unsafe fn get_capability(L: *mut lua_State) -> Result<&'static LlmCapability, &'static str> {
+    unsafe {
+        let ud = ffi::luaL_checkudata(L, 1, CAP_METATABLE.as_ptr() as *const c_char);
+        if ud.is_null() {
+            return Err("expected LlmCapability");
+        }
+        Ok(&*(ud as *const LlmCapability))
+    }
+}
+
+// ============================================================================
+// Capability methods
+// ============================================================================
+
+/// cap:providers() -> array of allowed provider names
+unsafe extern "C-unwind" fn cap_providers(L: *mut lua_State) -> c_int {
+    unsafe {
+        let cap = match get_capability(L) {
+            Ok(c) => c,
+            Err(e) => return push_error(L, e),
+        };
+
+        ffi::lua_createtable(L, cap.providers.len() as c_int, 0);
+
+        for (i, p) in cap.providers.iter().enumerate() {
             let c_name = CString::new(p.name()).unwrap();
             ffi::lua_pushstring(L, c_name.as_ptr());
             ffi::lua_rawseti(L, -2, (i + 1) as ffi::lua_Integer);
@@ -211,17 +420,26 @@ unsafe extern "C-unwind" fn llm_providers(L: *mut lua_State) -> c_int {
     }
 }
 
-/// llm.provider_info(name) -> info table
-unsafe extern "C-unwind" fn llm_provider_info(L: *mut lua_State) -> c_int {
+/// cap:provider_info(name) -> info table
+unsafe extern "C-unwind" fn cap_provider_info(L: *mut lua_State) -> c_int {
     unsafe {
-        if ffi::lua_type(L, 1) != ffi::LUA_TSTRING {
+        let cap = match get_capability(L) {
+            Ok(c) => c,
+            Err(e) => return push_error(L, e),
+        };
+
+        if ffi::lua_type(L, 2) != ffi::LUA_TSTRING {
             return push_error(L, "provider_info requires name argument");
         }
-        let name_ptr = ffi::lua_tostring(L, 1);
+        let name_ptr = ffi::lua_tostring(L, 2);
         let name = CStr::from_ptr(name_ptr).to_string_lossy();
 
         match Provider::parse(&name) {
             Some(p) => {
+                if !cap.is_provider_allowed(&p) {
+                    return push_error(L, &format!("provider '{}' not allowed", name));
+                }
+
                 ffi::lua_createtable(L, 0, 3);
 
                 let c_name = CString::new(p.name()).unwrap();
@@ -238,43 +456,53 @@ unsafe extern "C-unwind" fn llm_provider_info(L: *mut lua_State) -> c_int {
 
                 1
             }
-            None => push_error(L, &format!("Unknown provider: {}", name)),
+            None => push_error(L, &format!("unknown provider: {}", name)),
         }
     }
 }
 
-/// llm.complete(provider, model?, system?, prompt, opts?) -> response string
-unsafe extern "C-unwind" fn llm_complete(L: *mut lua_State) -> c_int {
+/// cap:complete(provider, model?, system?, prompt, opts?) -> response string
+unsafe extern "C-unwind" fn cap_complete(L: *mut lua_State) -> c_int {
     unsafe {
-        // Parse args: provider (required), model (optional), system (optional), prompt (required), opts (optional)
-        if ffi::lua_type(L, 1) != ffi::LUA_TSTRING {
-            return push_error(L, "complete requires provider argument");
-        }
-        let provider_ptr = ffi::lua_tostring(L, 1);
-        let provider_str = CStr::from_ptr(provider_ptr).to_string_lossy();
-
-        let model = if ffi::lua_type(L, 2) == ffi::LUA_TSTRING {
-            let ptr = ffi::lua_tostring(L, 2);
-            Some(CStr::from_ptr(ptr).to_string_lossy().into_owned())
-        } else {
-            None
+        let cap = match get_capability(L) {
+            Ok(c) => c,
+            Err(e) => return push_error(L, e),
         };
 
-        let system = if ffi::lua_type(L, 3) == ffi::LUA_TSTRING {
+        // Parse args: provider (required), model (optional), system (optional), prompt (required), opts (optional)
+        if ffi::lua_type(L, 2) != ffi::LUA_TSTRING {
+            return push_error(L, "complete requires provider argument");
+        }
+        let provider_ptr = ffi::lua_tostring(L, 2);
+        let provider_str = CStr::from_ptr(provider_ptr).to_string_lossy();
+
+        let provider = match Provider::parse(&provider_str) {
+            Some(p) => p,
+            None => return push_error(L, &format!("unknown provider: {}", provider_str)),
+        };
+
+        let model = if ffi::lua_type(L, 3) == ffi::LUA_TSTRING {
             let ptr = ffi::lua_tostring(L, 3);
             Some(CStr::from_ptr(ptr).to_string_lossy().into_owned())
         } else {
             None
         };
 
-        if ffi::lua_type(L, 4) != ffi::LUA_TSTRING {
+        let system = if ffi::lua_type(L, 4) == ffi::LUA_TSTRING {
+            let ptr = ffi::lua_tostring(L, 4);
+            Some(CStr::from_ptr(ptr).to_string_lossy().into_owned())
+        } else {
+            None
+        };
+
+        if ffi::lua_type(L, 5) != ffi::LUA_TSTRING {
             return push_error(L, "complete requires prompt argument");
         }
-        let prompt_ptr = ffi::lua_tostring(L, 4);
+        let prompt_ptr = ffi::lua_tostring(L, 5);
         let prompt = CStr::from_ptr(prompt_ptr).to_string_lossy();
 
-        let max_tokens = if ffi::lua_type(L, 5) == ffi::LUA_TTABLE {
-            ffi::lua_getfield(L, 5, c"max_tokens".as_ptr());
+        let max_tokens = if ffi::lua_type(L, 6) == ffi::LUA_TTABLE {
+            ffi::lua_getfield(L, 6, c"max_tokens".as_ptr());
             let tokens = if ffi::lua_type(L, -1) == ffi::LUA_TNUMBER {
                 Some(ffi::lua_tointeger(L, -1) as usize)
             } else {
@@ -286,9 +514,19 @@ unsafe extern "C-unwind" fn llm_complete(L: *mut lua_State) -> c_int {
             None
         };
 
+        let model_str = model
+            .as_deref()
+            .unwrap_or(provider.default_model())
+            .to_string();
+
+        // Validate against capability
+        if let Err(e) = cap.validate_request(&provider, &model_str) {
+            return push_error(L, &e);
+        }
+
         match do_complete(
             &provider_str,
-            model.as_deref(),
+            Some(&model_str),
             system.as_deref(),
             &prompt,
             max_tokens,
@@ -303,41 +541,51 @@ unsafe extern "C-unwind" fn llm_complete(L: *mut lua_State) -> c_int {
     }
 }
 
-/// llm.chat(provider, model?, system?, prompt, history, opts?) -> response string
-unsafe extern "C-unwind" fn llm_chat(L: *mut lua_State) -> c_int {
+/// cap:chat(provider, model?, system?, prompt, history, opts?) -> response string
+unsafe extern "C-unwind" fn cap_chat(L: *mut lua_State) -> c_int {
     unsafe {
-        if ffi::lua_type(L, 1) != ffi::LUA_TSTRING {
-            return push_error(L, "chat requires provider argument");
-        }
-        let provider_ptr = ffi::lua_tostring(L, 1);
-        let provider_str = CStr::from_ptr(provider_ptr).to_string_lossy();
-
-        let model = if ffi::lua_type(L, 2) == ffi::LUA_TSTRING {
-            let ptr = ffi::lua_tostring(L, 2);
-            Some(CStr::from_ptr(ptr).to_string_lossy().into_owned())
-        } else {
-            None
+        let cap = match get_capability(L) {
+            Ok(c) => c,
+            Err(e) => return push_error(L, e),
         };
 
-        let system = if ffi::lua_type(L, 3) == ffi::LUA_TSTRING {
+        if ffi::lua_type(L, 2) != ffi::LUA_TSTRING {
+            return push_error(L, "chat requires provider argument");
+        }
+        let provider_ptr = ffi::lua_tostring(L, 2);
+        let provider_str = CStr::from_ptr(provider_ptr).to_string_lossy();
+
+        let provider = match Provider::parse(&provider_str) {
+            Some(p) => p,
+            None => return push_error(L, &format!("unknown provider: {}", provider_str)),
+        };
+
+        let model = if ffi::lua_type(L, 3) == ffi::LUA_TSTRING {
             let ptr = ffi::lua_tostring(L, 3);
             Some(CStr::from_ptr(ptr).to_string_lossy().into_owned())
         } else {
             None
         };
 
-        if ffi::lua_type(L, 4) != ffi::LUA_TSTRING {
+        let system = if ffi::lua_type(L, 4) == ffi::LUA_TSTRING {
+            let ptr = ffi::lua_tostring(L, 4);
+            Some(CStr::from_ptr(ptr).to_string_lossy().into_owned())
+        } else {
+            None
+        };
+
+        if ffi::lua_type(L, 5) != ffi::LUA_TSTRING {
             return push_error(L, "chat requires prompt argument");
         }
-        let prompt_ptr = ffi::lua_tostring(L, 4);
+        let prompt_ptr = ffi::lua_tostring(L, 5);
         let prompt = CStr::from_ptr(prompt_ptr).to_string_lossy();
 
         // Parse history table
         let mut history: Vec<(String, String)> = Vec::new();
-        if ffi::lua_type(L, 5) == ffi::LUA_TTABLE {
-            let len = ffi::lua_rawlen(L, 5);
+        if ffi::lua_type(L, 6) == ffi::LUA_TTABLE {
+            let len = ffi::lua_rawlen(L, 6);
             for i in 1..=len {
-                ffi::lua_rawgeti(L, 5, i as ffi::lua_Integer);
+                ffi::lua_rawgeti(L, 6, i as ffi::lua_Integer);
                 if ffi::lua_type(L, -1) == ffi::LUA_TTABLE {
                     ffi::lua_getfield(L, -1, c"role".as_ptr());
                     let role = if ffi::lua_type(L, -1) == ffi::LUA_TSTRING {
@@ -365,8 +613,8 @@ unsafe extern "C-unwind" fn llm_chat(L: *mut lua_State) -> c_int {
             }
         }
 
-        let max_tokens = if ffi::lua_type(L, 6) == ffi::LUA_TTABLE {
-            ffi::lua_getfield(L, 6, c"max_tokens".as_ptr());
+        let max_tokens = if ffi::lua_type(L, 7) == ffi::LUA_TTABLE {
+            ffi::lua_getfield(L, 7, c"max_tokens".as_ptr());
             let tokens = if ffi::lua_type(L, -1) == ffi::LUA_TNUMBER {
                 Some(ffi::lua_tointeger(L, -1) as usize)
             } else {
@@ -378,9 +626,19 @@ unsafe extern "C-unwind" fn llm_chat(L: *mut lua_State) -> c_int {
             None
         };
 
+        let model_str = model
+            .as_deref()
+            .unwrap_or(provider.default_model())
+            .to_string();
+
+        // Validate against capability
+        if let Err(e) = cap.validate_request(&provider, &model_str) {
+            return push_error(L, &e);
+        }
+
         match do_chat(
             &provider_str,
-            model.as_deref(),
+            Some(&model_str),
             system.as_deref(),
             &prompt,
             history,
@@ -396,42 +654,51 @@ unsafe extern "C-unwind" fn llm_chat(L: *mut lua_State) -> c_int {
     }
 }
 
-/// llm.start_chat(provider, model?, system?, prompt, history, opts?) -> Handle
-/// Starts chat asynchronously, returning a Handle for polling completion.
-unsafe extern "C-unwind" fn llm_start_chat(L: *mut lua_State) -> c_int {
+/// cap:start_chat(provider, model?, system?, prompt, history, opts?) -> Handle
+unsafe extern "C-unwind" fn cap_start_chat(L: *mut lua_State) -> c_int {
     unsafe {
-        if ffi::lua_type(L, 1) != ffi::LUA_TSTRING {
-            return push_error(L, "start_chat requires provider argument");
-        }
-        let provider_ptr = ffi::lua_tostring(L, 1);
-        let provider_str = CStr::from_ptr(provider_ptr).to_string_lossy().into_owned();
-
-        let model = if ffi::lua_type(L, 2) == ffi::LUA_TSTRING {
-            let ptr = ffi::lua_tostring(L, 2);
-            Some(CStr::from_ptr(ptr).to_string_lossy().into_owned())
-        } else {
-            None
+        let cap = match get_capability(L) {
+            Ok(c) => c,
+            Err(e) => return push_error(L, e),
         };
 
-        let system = if ffi::lua_type(L, 3) == ffi::LUA_TSTRING {
+        if ffi::lua_type(L, 2) != ffi::LUA_TSTRING {
+            return push_error(L, "start_chat requires provider argument");
+        }
+        let provider_ptr = ffi::lua_tostring(L, 2);
+        let provider_str = CStr::from_ptr(provider_ptr).to_string_lossy().into_owned();
+
+        let provider = match Provider::parse(&provider_str) {
+            Some(p) => p,
+            None => return push_error(L, &format!("unknown provider: {}", provider_str)),
+        };
+
+        let model = if ffi::lua_type(L, 3) == ffi::LUA_TSTRING {
             let ptr = ffi::lua_tostring(L, 3);
             Some(CStr::from_ptr(ptr).to_string_lossy().into_owned())
         } else {
             None
         };
 
-        if ffi::lua_type(L, 4) != ffi::LUA_TSTRING {
+        let system = if ffi::lua_type(L, 4) == ffi::LUA_TSTRING {
+            let ptr = ffi::lua_tostring(L, 4);
+            Some(CStr::from_ptr(ptr).to_string_lossy().into_owned())
+        } else {
+            None
+        };
+
+        if ffi::lua_type(L, 5) != ffi::LUA_TSTRING {
             return push_error(L, "start_chat requires prompt argument");
         }
-        let prompt_ptr = ffi::lua_tostring(L, 4);
+        let prompt_ptr = ffi::lua_tostring(L, 5);
         let prompt = CStr::from_ptr(prompt_ptr).to_string_lossy().into_owned();
 
         // Parse history table
         let mut history: Vec<(String, String)> = Vec::new();
-        if ffi::lua_type(L, 5) == ffi::LUA_TTABLE {
-            let len = ffi::lua_rawlen(L, 5);
+        if ffi::lua_type(L, 6) == ffi::LUA_TTABLE {
+            let len = ffi::lua_rawlen(L, 6);
             for i in 1..=len {
-                ffi::lua_rawgeti(L, 5, i as ffi::lua_Integer);
+                ffi::lua_rawgeti(L, 6, i as ffi::lua_Integer);
                 if ffi::lua_type(L, -1) == ffi::LUA_TTABLE {
                     ffi::lua_getfield(L, -1, c"role".as_ptr());
                     let role = if ffi::lua_type(L, -1) == ffi::LUA_TSTRING {
@@ -459,8 +726,8 @@ unsafe extern "C-unwind" fn llm_start_chat(L: *mut lua_State) -> c_int {
             }
         }
 
-        let max_tokens = if ffi::lua_type(L, 6) == ffi::LUA_TTABLE {
-            ffi::lua_getfield(L, 6, c"max_tokens".as_ptr());
+        let max_tokens = if ffi::lua_type(L, 7) == ffi::LUA_TTABLE {
+            ffi::lua_getfield(L, 7, c"max_tokens".as_ptr());
             let tokens = if ffi::lua_type(L, -1) == ffi::LUA_TNUMBER {
                 Some(ffi::lua_tointeger(L, -1) as usize)
             } else {
@@ -472,8 +739,24 @@ unsafe extern "C-unwind" fn llm_start_chat(L: *mut lua_State) -> c_int {
             None
         };
 
+        let model_str = model
+            .clone()
+            .unwrap_or_else(|| provider.default_model().to_string());
+
+        // Validate against capability
+        if let Err(e) = cap.validate_request(&provider, &model_str) {
+            return push_error(L, &e);
+        }
+
         // Create Handle for async chat
-        let handle = spawn_chat_request(provider_str, model, system, prompt, history, max_tokens);
+        let handle = spawn_chat_request(
+            provider_str,
+            Some(model_str),
+            system,
+            prompt,
+            history,
+            max_tokens,
+        );
         handle::push_handle(L, handle)
     }
 }

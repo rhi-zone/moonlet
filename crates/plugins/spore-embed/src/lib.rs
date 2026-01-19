@@ -1,12 +1,15 @@
 //! Embedding generation plugin for spore.
 //!
-//! Provides multi-provider embedding generation:
+//! Provides capability-based multi-provider embedding generation.
 //!
-//! ## Module Functions
-//! - `embed.providers()` - List available providers with embedding support
-//! - `embed.provider_info(name)` - Get provider details and default model
-//! - `embed.generate(provider, model?, texts)` - Generate embeddings (blocking)
-//! - `embed.start_generate(provider, model?, texts)` - Generate embeddings (async, returns Handle)
+//! ## Capability Constructor
+//! - `embed.capability({ providers = {...}, models = {...} })` - Create embedding capability
+//!
+//! ## Capability Methods
+//! - `cap:providers()` - List allowed providers
+//! - `cap:provider_info(name)` - Get provider details (if allowed)
+//! - `cap:generate(provider, model?, texts)` - Generate embeddings (blocking)
+//! - `cap:start_generate(provider, model?, texts)` - Generate embeddings (async, returns Handle)
 
 #![allow(non_snake_case)]
 
@@ -17,11 +20,15 @@ use rig::{
     embeddings::EmbeddingsBuilder,
     providers,
 };
+use std::collections::HashMap;
 use std::ffi::{CStr, CString, c_char, c_int};
 use std::sync::mpsc::channel;
 
 /// Plugin ABI version.
 const ABI_VERSION: u32 = 1;
+
+/// Metatable name for EmbedCapability userdata.
+const CAP_METATABLE: &[u8] = b"spore.embed.Capability\0";
 
 /// Plugin info for version checking.
 #[repr(C)]
@@ -110,6 +117,56 @@ impl Provider {
 }
 
 // ============================================================================
+// Capability
+// ============================================================================
+
+/// Embedding capability - provides scoped access to embedding providers.
+#[derive(Debug, Clone)]
+pub struct EmbedCapability {
+    /// Allowed providers
+    providers: Vec<Provider>,
+    /// Optional model whitelist per provider (empty vec = all models allowed)
+    models: HashMap<String, Vec<String>>,
+}
+
+impl EmbedCapability {
+    pub fn new(providers: Vec<Provider>, models: HashMap<String, Vec<String>>) -> Self {
+        Self { providers, models }
+    }
+
+    fn is_provider_allowed(&self, provider: &Provider) -> bool {
+        self.providers.contains(provider)
+    }
+
+    fn is_model_allowed(&self, provider: &Provider, model: &str) -> bool {
+        if let Some(allowed_models) = self.models.get(provider.name()) {
+            // Empty list means all models allowed for this provider
+            allowed_models.is_empty() || allowed_models.iter().any(|m| m == model)
+        } else {
+            // No entry means all models allowed
+            true
+        }
+    }
+
+    fn validate_request(&self, provider: &Provider, model: &str) -> Result<(), String> {
+        if !self.is_provider_allowed(provider) {
+            return Err(format!(
+                "provider '{}' not allowed by capability",
+                provider.name()
+            ));
+        }
+        if !self.is_model_allowed(provider, model) {
+            return Err(format!(
+                "model '{}' not allowed for provider '{}'",
+                model,
+                provider.name()
+            ));
+        }
+        Ok(())
+    }
+}
+
+// ============================================================================
 // Plugin exports
 // ============================================================================
 
@@ -129,39 +186,191 @@ pub extern "C" fn spore_plugin_info() -> SporePluginInfo {
 #[unsafe(no_mangle)]
 pub unsafe extern "C-unwind" fn luaopen_spore_embed(L: *mut lua_State) -> c_int {
     unsafe {
-        // Register Handle metatable (from spore-lua)
+        // Register metatables
         handle::register_handle_metatable(L);
+        register_capability_metatable(L);
 
-        // Create module table
-        ffi::lua_createtable(L, 0, 4);
+        // Create module table with only capability constructor
+        ffi::lua_createtable(L, 0, 1);
 
-        ffi::lua_pushcclosure(L, embed_providers, 0);
-        ffi::lua_setfield(L, -2, c"providers".as_ptr());
-
-        ffi::lua_pushcclosure(L, embed_provider_info, 0);
-        ffi::lua_setfield(L, -2, c"provider_info".as_ptr());
-
-        ffi::lua_pushcclosure(L, embed_generate, 0);
-        ffi::lua_setfield(L, -2, c"generate".as_ptr());
-
-        ffi::lua_pushcclosure(L, embed_start_generate, 0);
-        ffi::lua_setfield(L, -2, c"start_generate".as_ptr());
+        ffi::lua_pushcclosure(L, embed_capability, 0);
+        ffi::lua_setfield(L, -2, c"capability".as_ptr());
 
         1
     }
 }
 
 // ============================================================================
-// Module functions
+// Capability metatable
 // ============================================================================
 
-/// embed.providers() -> array of provider names
-unsafe extern "C-unwind" fn embed_providers(L: *mut lua_State) -> c_int {
+unsafe fn register_capability_metatable(L: *mut lua_State) {
     unsafe {
-        let providers = Provider::all();
-        ffi::lua_createtable(L, providers.len() as c_int, 0);
+        if ffi::luaL_newmetatable(L, CAP_METATABLE.as_ptr() as *const c_char) != 0 {
+            // __index table with methods
+            ffi::lua_createtable(L, 0, 4);
 
-        for (i, p) in providers.iter().enumerate() {
+            ffi::lua_pushcclosure(L, cap_providers, 0);
+            ffi::lua_setfield(L, -2, c"providers".as_ptr());
+
+            ffi::lua_pushcclosure(L, cap_provider_info, 0);
+            ffi::lua_setfield(L, -2, c"provider_info".as_ptr());
+
+            ffi::lua_pushcclosure(L, cap_generate, 0);
+            ffi::lua_setfield(L, -2, c"generate".as_ptr());
+
+            ffi::lua_pushcclosure(L, cap_start_generate, 0);
+            ffi::lua_setfield(L, -2, c"start_generate".as_ptr());
+
+            ffi::lua_setfield(L, -2, c"__index".as_ptr());
+
+            // __gc for cleanup
+            ffi::lua_pushcclosure(L, cap_gc, 0);
+            ffi::lua_setfield(L, -2, c"__gc".as_ptr());
+
+            // __tostring for debugging
+            ffi::lua_pushcclosure(L, cap_tostring, 0);
+            ffi::lua_setfield(L, -2, c"__tostring".as_ptr());
+        }
+        ffi::lua_pop(L, 1);
+    }
+}
+
+/// embed.capability({ providers = {...}, models = {...} }) -> EmbedCapability
+unsafe extern "C-unwind" fn embed_capability(L: *mut lua_State) -> c_int {
+    unsafe {
+        // Expect table argument
+        if ffi::lua_type(L, 1) != ffi::LUA_TTABLE {
+            return push_error(
+                L,
+                "capability requires table argument with 'providers' field",
+            );
+        }
+
+        // Get required providers field
+        ffi::lua_getfield(L, 1, c"providers".as_ptr());
+        if ffi::lua_type(L, -1) != ffi::LUA_TTABLE {
+            return push_error(L, "capability requires 'providers' array");
+        }
+
+        let mut providers: Vec<Provider> = Vec::new();
+        let len = ffi::lua_rawlen(L, -1);
+        for i in 1..=len {
+            ffi::lua_rawgeti(L, -1, i as ffi::lua_Integer);
+            if ffi::lua_type(L, -1) == ffi::LUA_TSTRING {
+                let ptr = ffi::lua_tostring(L, -1);
+                let name = CStr::from_ptr(ptr).to_string_lossy();
+                if let Some(p) = Provider::parse(&name) {
+                    providers.push(p);
+                } else {
+                    ffi::lua_pop(L, 2);
+                    return push_error(L, &format!("unknown provider: {}", name));
+                }
+            }
+            ffi::lua_pop(L, 1);
+        }
+        ffi::lua_pop(L, 1);
+
+        if providers.is_empty() {
+            return push_error(L, "providers array cannot be empty");
+        }
+
+        // Get optional models field
+        let mut models: HashMap<String, Vec<String>> = HashMap::new();
+        ffi::lua_getfield(L, 1, c"models".as_ptr());
+        if ffi::lua_type(L, -1) == ffi::LUA_TTABLE {
+            // Iterate over the models table (provider_name -> array of models)
+            ffi::lua_pushnil(L);
+            while ffi::lua_next(L, -2) != 0 {
+                if ffi::lua_type(L, -2) == ffi::LUA_TSTRING {
+                    let key_ptr = ffi::lua_tostring(L, -2);
+                    let provider_name = CStr::from_ptr(key_ptr).to_string_lossy().into_owned();
+
+                    let mut model_list: Vec<String> = Vec::new();
+                    if ffi::lua_type(L, -1) == ffi::LUA_TTABLE {
+                        let model_len = ffi::lua_rawlen(L, -1);
+                        for j in 1..=model_len {
+                            ffi::lua_rawgeti(L, -1, j as ffi::lua_Integer);
+                            if ffi::lua_type(L, -1) == ffi::LUA_TSTRING {
+                                let model_ptr = ffi::lua_tostring(L, -1);
+                                model_list
+                                    .push(CStr::from_ptr(model_ptr).to_string_lossy().into_owned());
+                            }
+                            ffi::lua_pop(L, 1);
+                        }
+                    }
+                    models.insert(provider_name, model_list);
+                }
+                ffi::lua_pop(L, 1);
+            }
+        }
+        ffi::lua_pop(L, 1);
+
+        // Create capability userdata
+        let cap = EmbedCapability::new(providers, models);
+        let ud =
+            ffi::lua_newuserdata(L, std::mem::size_of::<EmbedCapability>()) as *mut EmbedCapability;
+        std::ptr::write(ud, cap);
+
+        // Set metatable
+        ffi::luaL_setmetatable(L, CAP_METATABLE.as_ptr() as *const c_char);
+
+        1
+    }
+}
+
+/// __gc metamethod for capability
+unsafe extern "C-unwind" fn cap_gc(L: *mut lua_State) -> c_int {
+    unsafe {
+        let ud = ffi::lua_touserdata(L, 1) as *mut EmbedCapability;
+        if !ud.is_null() {
+            std::ptr::drop_in_place(ud);
+        }
+        0
+    }
+}
+
+/// __tostring metamethod for capability
+unsafe extern "C-unwind" fn cap_tostring(L: *mut lua_State) -> c_int {
+    unsafe {
+        if let Ok(cap) = get_capability(L) {
+            let provider_names: Vec<&str> = cap.providers.iter().map(|p| p.name()).collect();
+            let desc = format!("EmbedCapability(providers=[{}])", provider_names.join(", "));
+            let c_desc = CString::new(desc).unwrap();
+            ffi::lua_pushstring(L, c_desc.as_ptr());
+        } else {
+            ffi::lua_pushstring(L, c"EmbedCapability(invalid)".as_ptr());
+        }
+        1
+    }
+}
+
+/// Get capability from first argument (self)
+unsafe fn get_capability(L: *mut lua_State) -> Result<&'static EmbedCapability, &'static str> {
+    unsafe {
+        let ud = ffi::luaL_checkudata(L, 1, CAP_METATABLE.as_ptr() as *const c_char);
+        if ud.is_null() {
+            return Err("expected EmbedCapability");
+        }
+        Ok(&*(ud as *const EmbedCapability))
+    }
+}
+
+// ============================================================================
+// Capability methods
+// ============================================================================
+
+/// cap:providers() -> array of allowed provider names
+unsafe extern "C-unwind" fn cap_providers(L: *mut lua_State) -> c_int {
+    unsafe {
+        let cap = match get_capability(L) {
+            Ok(c) => c,
+            Err(e) => return push_error(L, e),
+        };
+
+        ffi::lua_createtable(L, cap.providers.len() as c_int, 0);
+
+        for (i, p) in cap.providers.iter().enumerate() {
             let c_name = CString::new(p.name()).unwrap();
             ffi::lua_pushstring(L, c_name.as_ptr());
             ffi::lua_rawseti(L, -2, (i + 1) as ffi::lua_Integer);
@@ -171,17 +380,26 @@ unsafe extern "C-unwind" fn embed_providers(L: *mut lua_State) -> c_int {
     }
 }
 
-/// embed.provider_info(name) -> info table
-unsafe extern "C-unwind" fn embed_provider_info(L: *mut lua_State) -> c_int {
+/// cap:provider_info(name) -> info table
+unsafe extern "C-unwind" fn cap_provider_info(L: *mut lua_State) -> c_int {
     unsafe {
-        if ffi::lua_type(L, 1) != ffi::LUA_TSTRING {
+        let cap = match get_capability(L) {
+            Ok(c) => c,
+            Err(e) => return push_error(L, e),
+        };
+
+        if ffi::lua_type(L, 2) != ffi::LUA_TSTRING {
             return push_error(L, "provider_info requires name argument");
         }
-        let name_ptr = ffi::lua_tostring(L, 1);
+        let name_ptr = ffi::lua_tostring(L, 2);
         let name = CStr::from_ptr(name_ptr).to_string_lossy();
 
         match Provider::parse(&name) {
             Some(p) => {
+                if !cap.is_provider_allowed(&p) {
+                    return push_error(L, &format!("provider '{}' not allowed", name));
+                }
+
                 ffi::lua_createtable(L, 0, 3);
 
                 let c_name = CString::new(p.name()).unwrap();
@@ -198,30 +416,40 @@ unsafe extern "C-unwind" fn embed_provider_info(L: *mut lua_State) -> c_int {
 
                 1
             }
-            None => push_error(L, &format!("Unknown provider: {}", name)),
+            None => push_error(L, &format!("unknown provider: {}", name)),
         }
     }
 }
 
-/// embed.generate(provider, model?, texts) -> array of embeddings
-unsafe extern "C-unwind" fn embed_generate(L: *mut lua_State) -> c_int {
+/// cap:generate(provider, model?, texts) -> array of embeddings
+unsafe extern "C-unwind" fn cap_generate(L: *mut lua_State) -> c_int {
     unsafe {
+        let cap = match get_capability(L) {
+            Ok(c) => c,
+            Err(e) => return push_error(L, e),
+        };
+
         // Parse args: provider (required), model (optional), texts (required array)
-        if ffi::lua_type(L, 1) != ffi::LUA_TSTRING {
+        if ffi::lua_type(L, 2) != ffi::LUA_TSTRING {
             return push_error(L, "generate requires provider argument");
         }
-        let provider_ptr = ffi::lua_tostring(L, 1);
+        let provider_ptr = ffi::lua_tostring(L, 2);
         let provider_str = CStr::from_ptr(provider_ptr).to_string_lossy();
 
-        let model = if ffi::lua_type(L, 2) == ffi::LUA_TSTRING {
-            let ptr = ffi::lua_tostring(L, 2);
+        let provider = match Provider::parse(&provider_str) {
+            Some(p) => p,
+            None => return push_error(L, &format!("unknown provider: {}", provider_str)),
+        };
+
+        let model = if ffi::lua_type(L, 3) == ffi::LUA_TSTRING {
+            let ptr = ffi::lua_tostring(L, 3);
             Some(CStr::from_ptr(ptr).to_string_lossy().into_owned())
         } else {
             None
         };
 
-        // texts is arg 3 (or 2 if model was nil)
-        let texts_idx = if model.is_some() { 3 } else { 2 };
+        // texts is arg 4 (or 3 if model was nil)
+        let texts_idx = if model.is_some() { 4 } else { 3 };
 
         if ffi::lua_type(L, texts_idx) != ffi::LUA_TTABLE {
             return push_error(L, "generate requires texts array");
@@ -242,7 +470,17 @@ unsafe extern "C-unwind" fn embed_generate(L: *mut lua_State) -> c_int {
             return push_error(L, "texts array is empty");
         }
 
-        match do_generate(&provider_str, model.as_deref(), texts) {
+        let model_str = model
+            .as_deref()
+            .unwrap_or(provider.default_model())
+            .to_string();
+
+        // Validate against capability
+        if let Err(e) = cap.validate_request(&provider, &model_str) {
+            return push_error(L, &e);
+        }
+
+        match do_generate(&provider_str, Some(&model_str), texts) {
             Ok(embeddings) => {
                 // Return array of embedding arrays
                 ffi::lua_createtable(L, embeddings.len() as c_int, 0);
@@ -261,24 +499,33 @@ unsafe extern "C-unwind" fn embed_generate(L: *mut lua_State) -> c_int {
     }
 }
 
-/// embed.start_generate(provider, model?, texts) -> Handle
-/// Starts embedding generation asynchronously, returning a Handle for polling completion.
-unsafe extern "C-unwind" fn embed_start_generate(L: *mut lua_State) -> c_int {
+/// cap:start_generate(provider, model?, texts) -> Handle
+unsafe extern "C-unwind" fn cap_start_generate(L: *mut lua_State) -> c_int {
     unsafe {
-        if ffi::lua_type(L, 1) != ffi::LUA_TSTRING {
+        let cap = match get_capability(L) {
+            Ok(c) => c,
+            Err(e) => return push_error(L, e),
+        };
+
+        if ffi::lua_type(L, 2) != ffi::LUA_TSTRING {
             return push_error(L, "start_generate requires provider argument");
         }
-        let provider_ptr = ffi::lua_tostring(L, 1);
+        let provider_ptr = ffi::lua_tostring(L, 2);
         let provider_str = CStr::from_ptr(provider_ptr).to_string_lossy().into_owned();
 
-        let model = if ffi::lua_type(L, 2) == ffi::LUA_TSTRING {
-            let ptr = ffi::lua_tostring(L, 2);
+        let provider = match Provider::parse(&provider_str) {
+            Some(p) => p,
+            None => return push_error(L, &format!("unknown provider: {}", provider_str)),
+        };
+
+        let model = if ffi::lua_type(L, 3) == ffi::LUA_TSTRING {
+            let ptr = ffi::lua_tostring(L, 3);
             Some(CStr::from_ptr(ptr).to_string_lossy().into_owned())
         } else {
             None
         };
 
-        let texts_idx = if model.is_some() { 3 } else { 2 };
+        let texts_idx = if model.is_some() { 4 } else { 3 };
 
         if ffi::lua_type(L, texts_idx) != ffi::LUA_TTABLE {
             return push_error(L, "start_generate requires texts array");
@@ -299,7 +546,16 @@ unsafe extern "C-unwind" fn embed_start_generate(L: *mut lua_State) -> c_int {
             return push_error(L, "texts array is empty");
         }
 
-        let handle = spawn_generate_request(provider_str, model, texts);
+        let model_str = model
+            .clone()
+            .unwrap_or_else(|| provider.default_model().to_string());
+
+        // Validate against capability
+        if let Err(e) = cap.validate_request(&provider, &model_str) {
+            return push_error(L, &e);
+        }
+
+        let handle = spawn_generate_request(provider_str, Some(model_str), texts);
         handle::push_handle(L, handle)
     }
 }
