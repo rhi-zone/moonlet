@@ -56,6 +56,16 @@ impl PluginLoader {
             search_paths.push(home.join(".spore/plugins"));
         }
 
+        // Plugins relative to executable (for nix and installed packages)
+        if let Ok(exe_path) = std::env::current_exe()
+            && let Some(exe_dir) = exe_path.parent()
+        {
+            // <exe_dir>/../lib/spore/plugins (standard FHS layout)
+            search_paths.push(exe_dir.join("../lib/spore/plugins"));
+            // <exe_dir>/plugins (flat layout)
+            search_paths.push(exe_dir.join("plugins"));
+        }
+
         // System plugins (Linux)
         search_paths.push(PathBuf::from("/usr/lib/spore/plugins"));
         search_paths.push(PathBuf::from("/usr/local/lib/spore/plugins"));

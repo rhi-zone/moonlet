@@ -40,11 +40,18 @@
             # Install plugin shared library - check CARGO_TARGET_DIR if set, else target/release
             libname="librhizome_spore_${builtins.replaceStrings ["-"] ["_"] name}"
             targetDir="''${CARGO_TARGET_DIR:-target}/release"
+            echo "=== Debug: Looking for $libname in $targetDir ==="
+            ls -la "$targetDir/" 2>/dev/null | head -20 || echo "targetDir not found"
+            echo "=== Debug: Find results ==="
+            find . -name "$libname.*" 2>/dev/null || true
             for ext in so dylib dll; do
               if [ -f "$targetDir/$libname.$ext" ]; then
+                echo "Found: $targetDir/$libname.$ext"
                 cp "$targetDir/$libname.$ext" "$out/lib/spore/plugins/"
               fi
             done
+            echo "=== Debug: Installed plugins ==="
+            ls -la "$out/lib/spore/plugins/" || true
             runHook postInstall
           '';
         };
