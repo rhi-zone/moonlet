@@ -37,9 +37,13 @@
           installPhase = ''
             runHook preInstall
             mkdir -p $out/lib/spore/plugins
-            find target/release -maxdepth 1 -name "librhizome_spore_${builtins.replaceStrings ["-"] ["_"] name}.*" \
-              \( -name "*.so" -o -name "*.dylib" -o -name "*.dll" \) \
-              -exec cp {} $out/lib/spore/plugins/ \;
+            # Install plugin shared library - check both target/release and CARGO_TARGET_DIR
+            libname="librhizome_spore_${builtins.replaceStrings ["-"] ["_"] name}"
+            for ext in so dylib dll; do
+              if [ -f "target/release/$libname.$ext" ]; then
+                cp "target/release/$libname.$ext" "$out/lib/spore/plugins/"
+              fi
+            done
             runHook postInstall
           '';
         };
