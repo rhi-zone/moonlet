@@ -16,6 +16,7 @@ struct Cli {
 #[derive(Subcommand)]
 enum Commands {
     /// Run the entry script
+    #[command(trailing_var_arg = true)]
     Run {
         /// Project directory (defaults to current directory)
         #[arg(default_value = ".")]
@@ -26,7 +27,7 @@ enum Commands {
         entry: Option<PathBuf>,
 
         /// Arguments to pass to the Lua script
-        #[arg(last = true)]
+        #[arg(allow_hyphen_values = true)]
         args: Vec<String>,
     },
 
