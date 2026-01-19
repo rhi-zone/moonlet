@@ -24,6 +24,10 @@ enum Commands {
         /// Override the entry point script
         #[arg(short, long)]
         entry: Option<PathBuf>,
+
+        /// Arguments to pass to the Lua script
+        #[arg(last = true)]
+        args: Vec<String>,
     },
 
     /// Initialize a new spore project
@@ -202,8 +206,8 @@ fn main() {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Run { path, entry } => {
-            if let Err(e) = run(&path, entry.as_deref()) {
+        Commands::Run { path, entry, args } => {
+            if let Err(e) = run(&path, entry.as_deref(), &args) {
                 eprintln!("error: {}", e);
                 std::process::exit(1);
             }
@@ -217,7 +221,7 @@ fn main() {
     }
 }
 
-fn run(project_path: &Path, entry_override: Option<&Path>) -> Result<(), String> {
+fn run(project_path: &Path, entry_override: Option<&Path>, args: &[String]) -> Result<(), String> {
     let project_path = project_path
         .canonicalize()
         .map_err(|e| format!("Invalid project path: {}", e))?;
@@ -297,13 +301,29 @@ fn run(project_path: &Path, entry_override: Option<&Path>) -> Result<(), String>
             .map_err(|e| format!("Failed to load packages plugin: {}", e))?;
     }
 
-    // Set project root in Lua
-    runtime
-        .lua()
+    // Set project root and args in Lua
+    let lua = runtime.lua();
+    let spore_table = lua
         .globals()
         .get::<mlua::Table>("spore")
-        .and_then(|spore| spore.set("root", project_path.to_string_lossy().to_string()))
+        .map_err(|e| format!("Failed to get spore table: {}", e))?;
+
+    spore_table
+        .set("root", project_path.to_string_lossy().to_string())
         .map_err(|e| format!("Failed to set project root: {}", e))?;
+
+    // Set spore.args as a Lua table
+    let args_table = lua
+        .create_table()
+        .map_err(|e| format!("Failed to create args table: {}", e))?;
+    for (i, arg) in args.iter().enumerate() {
+        args_table
+            .set(i + 1, arg.as_str())
+            .map_err(|e| format!("Failed to set arg: {}", e))?;
+    }
+    spore_table
+        .set("args", args_table)
+        .map_err(|e| format!("Failed to set args: {}", e))?;
 
     // Create capabilities from config
     let caps = create_capabilities(&runtime, &config.caps, &project_path)?;
