@@ -37,11 +37,12 @@
           installPhase = ''
             runHook preInstall
             mkdir -p $out/lib/spore/plugins
-            # Install plugin shared library - check both target/release and CARGO_TARGET_DIR
+            # Install plugin shared library - check CARGO_TARGET_DIR if set, else target/release
             libname="librhizome_spore_${builtins.replaceStrings ["-"] ["_"] name}"
+            targetDir="''${CARGO_TARGET_DIR:-target}/release"
             for ext in so dylib dll; do
-              if [ -f "target/release/$libname.$ext" ]; then
-                cp "target/release/$libname.$ext" "$out/lib/spore/plugins/"
+              if [ -f "$targetDir/$libname.$ext" ]; then
+                cp "$targetDir/$libname.$ext" "$out/lib/spore/plugins/"
               fi
             done
             runHook postInstall
