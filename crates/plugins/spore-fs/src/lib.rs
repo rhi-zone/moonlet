@@ -9,11 +9,11 @@
 
 use mlua::ffi::{self, lua_State};
 use rhizome_pith_filesystem::{DirEntry, Directory, Error as FsError, FileType, Metadata};
-use rhizome_pith_io::{InputStream, OutputStream, StreamError};
+use rhizome_pith_io::{InputStream, OutputStream, Seek, SeekFrom, StreamError};
 use std::ffi::{CStr, CString, c_char, c_int};
 use std::fs::{self, File, OpenOptions};
 use std::future::Future;
-use std::io::{Read, Write};
+use std::io::{Read, Seek as StdSeek, Write};
 use std::path::{Path, PathBuf};
 
 /// Plugin ABI version.
@@ -52,26 +52,30 @@ impl FileInputStream {
 }
 
 impl InputStream for FileInputStream {
-    fn read(&mut self, len: usize) -> Result<Vec<u8>, StreamError> {
-        let mut buf = vec![0u8; len];
-        match self.file.read(&mut buf) {
-            Ok(0) => Err(StreamError::Closed),
-            Ok(n) => {
-                buf.truncate(n);
-                Ok(buf)
-            }
+    fn read_into(&mut self, buf: &mut [u8]) -> Result<usize, StreamError> {
+        match self.file.read(buf) {
+            Ok(0) if !buf.is_empty() => Err(StreamError::Closed),
+            Ok(n) => Ok(n),
             Err(e) => Err(StreamError::Other(e.to_string())),
         }
     }
 
-    fn blocking_read(&mut self, len: usize) -> Result<Vec<u8>, StreamError> {
+    fn blocking_read_into(&mut self, buf: &mut [u8]) -> Result<usize, StreamError> {
         // For regular files, read is already blocking
-        self.read(len)
+        self.read_into(buf)
     }
 
     fn subscribe(&self) -> impl Future<Output = ()> {
         // Files are always ready
         std::future::ready(())
+    }
+}
+
+impl Seek for FileInputStream {
+    fn seek(&mut self, pos: SeekFrom) -> Result<u64, StreamError> {
+        self.file
+            .seek(pos.into())
+            .map_err(|e| StreamError::Other(e.to_string()))
     }
 }
 
@@ -120,6 +124,14 @@ impl OutputStream for FileOutputStream {
     fn subscribe(&self) -> impl Future<Output = ()> {
         // Files are always ready
         std::future::ready(())
+    }
+}
+
+impl Seek for FileOutputStream {
+    fn seek(&mut self, pos: SeekFrom) -> Result<u64, StreamError> {
+        self.file
+            .seek(pos.into())
+            .map_err(|e| StreamError::Other(e.to_string()))
     }
 }
 
@@ -260,7 +272,7 @@ impl FsCapability {
 }
 
 impl Directory for FsCapability {
-    fn open_read(&self, path: &Path) -> Result<impl InputStream, FsError> {
+    fn open_read(&self, path: &Path) -> Result<impl InputStream + Seek, FsError> {
         if !self.can_read() {
             return Err(FsError::Access);
         }
@@ -269,7 +281,7 @@ impl Directory for FsCapability {
         Ok(FileInputStream::new(file))
     }
 
-    fn open_write(&self, path: &Path) -> Result<impl OutputStream, FsError> {
+    fn open_write(&self, path: &Path) -> Result<impl OutputStream + Seek, FsError> {
         if !self.can_write() {
             return Err(FsError::Access);
         }
