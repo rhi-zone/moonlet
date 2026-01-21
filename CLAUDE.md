@@ -113,3 +113,17 @@ From ecosystem-wide session analysis:
 - Memory stored in `.spore/` directory
 - Plugins live in `crates/plugins/` (cdylib crates)
 - Plugins export `luaopen_spore_{name}()` C function
+
+## Commit Convention
+
+Use conventional commits: `type(scope): message`
+
+Types:
+- `feat` - New feature
+- `fix` - Bug fix
+- `refactor` - Code change that neither fixes a bug nor adds a feature
+- `docs` - Documentation only
+- `chore` - Maintenance (deps, CI, etc.)
+- `test` - Adding or updating tests
+
+Scope is optional but recommended for multi-crate repos.
