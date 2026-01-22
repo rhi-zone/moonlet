@@ -114,6 +114,13 @@ From ecosystem-wide session analysis:
 - Plugins live in `crates/plugins/` (cdylib crates)
 - Plugins export `luaopen_spore_{name}()` C function
 
+## Negative Constraints
+
+Do not:
+- Use path dependencies in Cargo.toml - causes clippy to stash changes across repos
+- Use `--no-verify` - fix the issue or fix the hook
+- Assume tools are missing - check if `nix develop` is available for the right environment
+
 ## Commit Convention
 
 Use conventional commits: `type(scope): message`
