@@ -35,6 +35,7 @@ Iris needs these capabilities for agent-authored insights:
 
 - [x] Move LLM client from spore-core to spore-llm integration
 - [x] spore-core should be minimal (just runtime infrastructure)
+- [ ] **Abstract LLM APIs to reduce rig coupling** - spore-llm and spore-embed currently use rig-core traits directly. Consider abstracting the Lua-facing API to avoid tight coupling to rig's evolution. This would allow swapping LLM backends or upgrading rig without breaking Lua scripts.
 
 ## Integrations
 
