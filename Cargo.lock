@@ -3102,7 +3102,7 @@ dependencies = [
 [[package]]
 name = "rhizome-pith-filesystem"
 version = "0.1.0"
-source = "git+https://github.com/rhizome-lab/pith#6dc78dbc31237d8e2f8751282fc546e920f7e97e"
+source = "git+https://github.com/rhi-zone/portals#b08c5fba3e2ae25db2d4933f7a64c3549919001a"
 dependencies = [
  "rhizome-pith-io",
 ]
@@ -3110,7 +3110,7 @@ dependencies = [
 [[package]]
 name = "rhizome-pith-io"
 version = "0.1.0"
-source = "git+https://github.com/rhizome-lab/pith#6dc78dbc31237d8e2f8751282fc546e920f7e97e"
+source = "git+https://github.com/rhi-zone/portals#b08c5fba3e2ae25db2d4933f7a64c3549919001a"
 
 [[package]]
 name = "rig-core"

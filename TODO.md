@@ -26,10 +26,10 @@ Iris needs these capabilities for agent-authored insights:
 ## CLI
 
 - [x] `moonlet` crate - CLI binary that:
-  - Reads `.spore/config.toml`
+  - Reads `.moonlet/config.toml`
   - Sets up Lua runtime with requested integrations
   - Runs the entry point script
-  - Commands: `spore run [path]`, `spore init [path]`
+  - Commands: `moonlet run [path]`, `moonlet init [path]`
 
 ## Architecture
 
