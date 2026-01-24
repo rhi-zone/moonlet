@@ -17,7 +17,7 @@ moonlet-lua = { path = "crates/moonlet-lua" }
 # Plugins (dynamically loaded C ABI)
 moonlet-fs = { path = "crates/plugins/moonlet-fs" }
 moonlet-llm = { path = "crates/plugins/moonlet-llm" }
-moonlet-moss = { path = "crates/plugins/moonlet-moss" }
+moonlet-normalize = { path = "crates/plugins/moonlet-normalize" }
 moonlet-sessions = { path = "crates/plugins/moonlet-sessions" }
 moonlet-tools = { path = "crates/plugins/moonlet-tools" }
 moonlet-packages = { path = "crates/plugins/moonlet-packages" }

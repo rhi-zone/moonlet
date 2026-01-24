@@ -594,7 +594,7 @@ unsafe extern "C-unwind" fn cap_test_start(L: *mut lua_State) -> c_int {
 }
 
 /// Map runner name to command and base args.
-/// This mirrors the command building in moss-tools test runners.
+/// This mirrors the command building in normalize-tools test runners.
 fn get_runner_command(name: &str) -> (String, Vec<&'static str>) {
     match name {
         "cargo" => ("cargo".to_string(), vec!["test"]),

@@ -94,7 +94,7 @@ struct PluginsConfig {
     #[serde(default)]
     libsql: bool,
     #[serde(default)]
-    moss: bool,
+    normalize: bool,
     #[serde(default)]
     sessions: bool,
     #[serde(default)]
@@ -108,7 +108,7 @@ struct CapsConfig {
     #[serde(default)]
     fs: std::collections::HashMap<String, FsCapConfig>,
     #[serde(default)]
-    moss: std::collections::HashMap<String, MossCapConfig>,
+    normalize: std::collections::HashMap<String, NormalizeCapConfig>,
     #[serde(default)]
     sessions: std::collections::HashMap<String, SessionsCapConfig>,
     #[serde(default)]
@@ -131,7 +131,7 @@ struct FsCapConfig {
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
-struct MossCapConfig {
+struct NormalizeCapConfig {
     root: String,
     #[serde(default = "default_rw_mode")]
     mode: String,
@@ -278,10 +278,10 @@ fn run(project_path: &Path, entry_override: Option<&Path>, args: &[String]) -> R
             .map_err(|e| format!("Failed to load libsql plugin: {}", e))?;
     }
 
-    if config.plugins.moss {
+    if config.plugins.normalize {
         runtime
-            .load_plugin("moss")
-            .map_err(|e| format!("Failed to load moss plugin: {}", e))?;
+            .load_plugin("normalize")
+            .map_err(|e| format!("Failed to load normalize plugin: {}", e))?;
     }
 
     if config.plugins.sessions {
@@ -391,13 +391,13 @@ fn create_capabilities(
             .map_err(|e| format!("Failed to set fs caps: {}", e))?;
     }
 
-    // Create moss capabilities
-    if !caps_config.moss.is_empty() {
+    // Create normalize capabilities
+    if !caps_config.normalize.is_empty() {
         let moss_caps = lua
             .create_table()
             .map_err(|e| format!("Failed to create moss caps table: {}", e))?;
 
-        for (name, moss_config) in &caps_config.moss {
+        for (name, moss_config) in &caps_config.normalize {
             let expanded_root = expand_path(&moss_config.root, project_path);
 
             let params = lua
