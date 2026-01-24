@@ -4,7 +4,7 @@ Design document for adding `moonlet-moss-tools` and `moonlet-moss-packages` inte
 
 ## Context
 
-Spore already has `spore-moss` (code analysis, editing) and `spore-moss-sessions` (session parsing). This document covers adding bindings for the remaining moss modules:
+Spore already has `moonlet-moss` (code analysis, editing) and `moonlet-moss-sessions` (session parsing). This document covers adding bindings for the remaining moss modules:
 
 - **moss-tools**: External tool execution (linters, formatters, type checkers, test runners)
 - **moss-packages**: Package ecosystem queries and registry index lookups
@@ -150,15 +150,15 @@ Rationale: Each integration is independent. Users enable what they need. Nesting
 
 ```
 crates/integrations/
-├── spore-moss/           # existing
-├── spore-moss-sessions/  # existing
+├── moonlet-moss/           # existing
+├── moonlet-moss-sessions/  # existing
 ├── moonlet-moss-tools/     # new
 └── moonlet-moss-packages/  # new
 ```
 
 Config:
 ```toml
-# .spore/config.toml
+# .moonlet/config.toml
 [integrations]
 moss = true
 moss_sessions = true
@@ -626,14 +626,14 @@ This is a significant architectural change. See separate design doc (to be creat
 ```toml
 # moonlet-moss-tools
 [dependencies]
-rhizome-spore-lua.workspace = true
+rhizome-moonlet-lua.workspace = true
 rhizome-moss-tools = { git = "https://github.com/rhizome-lab/moss" }
 mlua.workspace = true
 serde_json.workspace = true
 
 # moonlet-moss-packages
 [dependencies]
-rhizome-spore-lua.workspace = true
+rhizome-moonlet-lua.workspace = true
 rhizome-moss-packages = { git = "https://github.com/rhizome-lab/moss", features = ["ecosystem", "index"] }
 mlua.workspace = true
 serde_json.workspace = true

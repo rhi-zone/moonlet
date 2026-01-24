@@ -7,7 +7,7 @@
 - **moonlet** = agency/execution (LLM calls, memory, running agents)
 - **moss** = intelligence (code analysis, session parsing, understanding)
 
-The projects are intentionally not hard-linked. Moss can optionally extend spore via the Integration trait.
+The projects are intentionally not hard-linked. Moss can optionally extend moonlet via the Integration trait.
 
 ## Components
 
