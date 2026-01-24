@@ -40,7 +40,7 @@
 #![allow(non_snake_case)]
 
 use mlua::ffi::{self, lua_State};
-use rhizome_moss_languages::Symbol;
+use normalize_languages::Symbol;
 use std::ffi::{CStr, CString, c_char, c_int};
 use std::path::{Path, PathBuf};
 
@@ -351,7 +351,7 @@ unsafe extern "C-unwind" fn cap_view(L: *mut lua_State) -> c_int {
             Err(e) => return push_error(L, &format!("Failed to read {}: {}", rel_path, e)),
         };
 
-        let extractor = rhizome_moss::extract::Extractor::new();
+        let extractor = normalize::extract::Extractor::new();
         let result = extractor.extract(&full_path, &content);
 
         // Create output table
@@ -405,7 +405,7 @@ unsafe extern "C-unwind" fn cap_search(L: *mut lua_State) -> c_int {
             (100, false)
         };
 
-        match rhizome_moss::text_search::grep(&pattern, &cap.root, None, limit, ignore_case) {
+        match normalize::text_search::grep(&pattern, &cap.root, None, limit, ignore_case) {
             Ok(result) => {
                 ffi::lua_createtable(L, 0, 3);
 
@@ -475,7 +475,7 @@ unsafe extern "C-unwind" fn cap_complexity(L: *mut lua_State) -> c_int {
             Err(e) => return push_error(L, &format!("Failed to read {}: {}", rel_path, e)),
         };
 
-        let analyzer = rhizome_moss::analyze::complexity::ComplexityAnalyzer::new();
+        let analyzer = normalize::analyze::complexity::ComplexityAnalyzer::new();
         let report = analyzer.analyze(&full_path, &content);
 
         ffi::lua_createtable(L, 0, 7);
@@ -555,7 +555,7 @@ unsafe extern "C-unwind" fn cap_length(L: *mut lua_State) -> c_int {
             Err(e) => return push_error(L, &format!("Failed to read {}: {}", rel_path, e)),
         };
 
-        let analyzer = rhizome_moss::analyze::function_length::LengthAnalyzer::new();
+        let analyzer = normalize::analyze::function_length::LengthAnalyzer::new();
         let report = analyzer.analyze(&full_path, &content);
 
         ffi::lua_createtable(L, 0, 6);
@@ -630,7 +630,7 @@ unsafe extern "C-unwind" fn cap_health(L: *mut lua_State) -> c_int {
             cap.root.clone()
         };
 
-        let report = rhizome_moss::health::analyze_health(&target);
+        let report = normalize::health::analyze_health(&target);
 
         ffi::lua_createtable(L, 0, 8);
 
@@ -688,7 +688,7 @@ unsafe extern "C-unwind" fn cap_security(L: *mut lua_State) -> c_int {
             return push_error(L, "invalid capability");
         };
 
-        let report = rhizome_moss::commands::analyze::security::analyze_security(&cap.root);
+        let report = normalize::commands::analyze::security::analyze_security(&cap.root);
 
         ffi::lua_createtable(L, 0, 3);
 
@@ -759,7 +759,7 @@ unsafe extern "C-unwind" fn cap_docs(L: *mut lua_State) -> c_int {
             10 // Default limit for worst files
         };
 
-        let report = rhizome_moss::commands::analyze::docs::analyze_docs(
+        let report = normalize::commands::analyze::docs::analyze_docs(
             &cap.root, limit, true, // exclude_interface_impls
             None, // no filter
         );
@@ -838,7 +838,7 @@ unsafe extern "C-unwind" fn cap_files(L: *mut lua_State) -> c_int {
             20 // Default limit
         };
 
-        let report = rhizome_moss::commands::analyze::files::analyze_files(&cap.root, limit, &[]);
+        let report = normalize::commands::analyze::files::analyze_files(&cap.root, limit, &[]);
 
         ffi::lua_createtable(L, 0, 3);
 
@@ -920,7 +920,7 @@ unsafe extern "C-unwind" fn cap_duplicates(L: *mut lua_State) -> c_int {
 
         // Run duplicate detection (runs cmd which prints but returns result)
         let result =
-            rhizome_moss::commands::analyze::duplicates::cmd_duplicate_functions_with_count(
+            normalize::commands::analyze::duplicates::cmd_duplicate_functions_with_count(
                 &cap.root,
                 elide_identifiers,
                 elide_literals,
@@ -959,7 +959,7 @@ unsafe extern "C-unwind" fn cap_hotspots(L: *mut lua_State) -> c_int {
         // Run hotspots analysis (this prints to stdout, we just capture exit code)
         // For proper data capture, we'd need to refactor moss to return structured data
         let exit_code =
-            rhizome_moss::commands::analyze::hotspots::cmd_hotspots(&cap.root, &[], false);
+            normalize::commands::analyze::hotspots::cmd_hotspots(&cap.root, &[], false);
 
         ffi::lua_createtable(L, 0, 1);
         ffi::lua_pushinteger(L, exit_code as ffi::lua_Integer);
@@ -977,7 +977,7 @@ unsafe extern "C-unwind" fn cap_stale_docs(L: *mut lua_State) -> c_int {
         };
 
         let exit_code =
-            rhizome_moss::commands::analyze::stale_docs::cmd_stale_docs(&cap.root, false);
+            normalize::commands::analyze::stale_docs::cmd_stale_docs(&cap.root, false);
 
         ffi::lua_createtable(L, 0, 1);
         ffi::lua_pushinteger(L, exit_code as ffi::lua_Integer);
@@ -995,7 +995,7 @@ unsafe extern "C-unwind" fn cap_check_refs(L: *mut lua_State) -> c_int {
         };
 
         let exit_code =
-            rhizome_moss::commands::analyze::check_refs::cmd_check_refs(&cap.root, false);
+            normalize::commands::analyze::check_refs::cmd_check_refs(&cap.root, false);
 
         ffi::lua_createtable(L, 0, 1);
         ffi::lua_pushinteger(L, exit_code as ffi::lua_Integer);
@@ -1049,7 +1049,7 @@ unsafe extern "C-unwind" fn cap_ast(L: *mut lua_State) -> c_int {
 
         // Run AST command (prints to stdout)
         let exit_code =
-            rhizome_moss::commands::analyze::ast::cmd_ast(&full_path, at_line, sexp, json);
+            normalize::commands::analyze::ast::cmd_ast(&full_path, at_line, sexp, json);
 
         ffi::lua_createtable(L, 0, 1);
         ffi::lua_pushinteger(L, exit_code as ffi::lua_Integer);
@@ -1103,10 +1103,10 @@ unsafe extern "C-unwind" fn cap_query(L: *mut lua_State) -> c_int {
             (None, false, 10)
         };
 
-        let format = rhizome_moss::output::OutputFormat::Compact;
+        let format = normalize::output::OutputFormat::Compact;
 
         // Run query command (prints to stdout)
-        let exit_code = rhizome_moss::commands::analyze::query::cmd_query(
+        let exit_code = normalize::commands::analyze::query::cmd_query(
             &pattern,
             path.as_deref(),
             None, // filter
@@ -1169,7 +1169,7 @@ unsafe extern "C-unwind" fn cap_trace(L: *mut lua_State) -> c_int {
         };
 
         // Run trace command (prints to stdout)
-        let exit_code = rhizome_moss::commands::analyze::trace::cmd_trace(
+        let exit_code = normalize::commands::analyze::trace::cmd_trace(
             &symbol,
             target.as_deref(),
             &cap.root,
@@ -1202,7 +1202,7 @@ unsafe extern "C-unwind" fn cap_callers(L: *mut lua_State) -> c_int {
         let symbol = CStr::from_ptr(symbol_ptr).to_string_lossy();
 
         // Run call graph command for callers (prints to stdout)
-        let exit_code = rhizome_moss::commands::analyze::call_graph::cmd_call_graph(
+        let exit_code = normalize::commands::analyze::call_graph::cmd_call_graph(
             &cap.root, &symbol, true,  // show_callers
             false, // show_callees
             false, // case_insensitive
@@ -1231,7 +1231,7 @@ unsafe extern "C-unwind" fn cap_callees(L: *mut lua_State) -> c_int {
         let symbol = CStr::from_ptr(symbol_ptr).to_string_lossy();
 
         // Run call graph command for callees (prints to stdout)
-        let exit_code = rhizome_moss::commands::analyze::call_graph::cmd_call_graph(
+        let exit_code = normalize::commands::analyze::call_graph::cmd_call_graph(
             &cap.root, &symbol, false, // show_callers
             true,  // show_callees
             false, // case_insensitive
@@ -1288,7 +1288,7 @@ unsafe extern "C-unwind" fn cap_find(L: *mut lua_State) -> c_int {
             Err(e) => return push_error(L, &format!("Failed to read {}: {}", rel_path, e)),
         };
 
-        let editor = rhizome_moss::edit::Editor::new();
+        let editor = normalize::edit::Editor::new();
         match editor.find_symbol(&full_path, &content, &name, case_insensitive) {
             Some(loc) => {
                 push_symbol_location(L, &loc);
@@ -1331,7 +1331,7 @@ unsafe extern "C-unwind" fn cap_find_all(L: *mut lua_State) -> c_int {
             Err(e) => return push_error(L, &format!("Failed to read {}: {}", rel_path, e)),
         };
 
-        let editor = rhizome_moss::edit::Editor::new();
+        let editor = normalize::edit::Editor::new();
         let locations = editor.find_symbols_matching(&full_path, &content, &pattern);
 
         ffi::lua_createtable(L, locations.len() as c_int, 0);
@@ -1377,7 +1377,7 @@ unsafe extern "C-unwind" fn cap_delete(L: *mut lua_State) -> c_int {
             Err(e) => return push_error(L, &format!("Failed to read {}: {}", rel_path, e)),
         };
 
-        let editor = rhizome_moss::edit::Editor::new();
+        let editor = normalize::edit::Editor::new();
         let loc = match editor.find_symbol(&full_path, &content, &name, false) {
             Some(l) => l,
             None => return push_error(L, &format!("Symbol not found: {}", name)),
@@ -1429,7 +1429,7 @@ unsafe extern "C-unwind" fn cap_replace(L: *mut lua_State) -> c_int {
             Err(e) => return push_error(L, &format!("Failed to read {}: {}", rel_path, e)),
         };
 
-        let editor = rhizome_moss::edit::Editor::new();
+        let editor = normalize::edit::Editor::new();
         let loc = match editor.find_symbol(&full_path, &content, &name, false) {
             Some(l) => l,
             None => return push_error(L, &format!("Symbol not found: {}", name)),
@@ -1481,7 +1481,7 @@ unsafe extern "C-unwind" fn cap_insert_before(L: *mut lua_State) -> c_int {
             Err(e) => return push_error(L, &format!("Failed to read {}: {}", rel_path, e)),
         };
 
-        let editor = rhizome_moss::edit::Editor::new();
+        let editor = normalize::edit::Editor::new();
         let loc = match editor.find_symbol(&full_path, &content, &name, false) {
             Some(l) => l,
             None => return push_error(L, &format!("Symbol not found: {}", name)),
@@ -1533,7 +1533,7 @@ unsafe extern "C-unwind" fn cap_insert_after(L: *mut lua_State) -> c_int {
             Err(e) => return push_error(L, &format!("Failed to read {}: {}", rel_path, e)),
         };
 
-        let editor = rhizome_moss::edit::Editor::new();
+        let editor = normalize::edit::Editor::new();
         let loc = match editor.find_symbol(&full_path, &content, &name, false) {
             Some(l) => l,
             None => return push_error(L, &format!("Symbol not found: {}", name)),
@@ -1585,7 +1585,7 @@ unsafe extern "C-unwind" fn cap_prepend_to(L: *mut lua_State) -> c_int {
             Err(e) => return push_error(L, &format!("Failed to read {}: {}", rel_path, e)),
         };
 
-        let editor = rhizome_moss::edit::Editor::new();
+        let editor = normalize::edit::Editor::new();
         let body = match editor.find_container_body(&full_path, &content, &container) {
             Some(b) => b,
             None => return push_error(L, &format!("Container not found: {}", container)),
@@ -1637,7 +1637,7 @@ unsafe extern "C-unwind" fn cap_append_to(L: *mut lua_State) -> c_int {
             Err(e) => return push_error(L, &format!("Failed to read {}: {}", rel_path, e)),
         };
 
-        let editor = rhizome_moss::edit::Editor::new();
+        let editor = normalize::edit::Editor::new();
         let body = match editor.find_container_body(&full_path, &content, &container) {
             Some(b) => b,
             None => return push_error(L, &format!("Container not found: {}", container)),
@@ -1804,7 +1804,7 @@ unsafe fn push_symbol(L: *mut lua_State, sym: &Symbol) {
     }
 }
 
-unsafe fn push_symbol_location(L: *mut lua_State, loc: &rhizome_moss::edit::SymbolLocation) {
+unsafe fn push_symbol_location(L: *mut lua_State, loc: &normalize::edit::SymbolLocation) {
     unsafe {
         ffi::lua_createtable(L, 0, 6);
 
