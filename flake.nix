@@ -19,8 +19,8 @@
         cargoLockConfig = {
           lockFile = ./Cargo.lock;
           outputHashes = {
-            "rhizome-moss-0.1.0" = "sha256-3H+oEHhQ4OtiTMACEiH5pSKws/aUF9Nm2tombqUiGbg=";
-            "rhizome-pith-filesystem-0.1.0" = "sha256-XD+/vftxHNrbt3lgJRUA8kr89hIDfVEs63kw5JbZER4=";
+            "normalize-0.1.0" = "sha256-eeX+GZtX4GOckfesqEQ/U4KZ781BK1jJC1RYAKoi+4E=";
+            "portals-filesystem-0.1.0" = "sha256-gj8ExV27uJ+e+hXob0+EIU/UOB62YfvxaaI+24wjbuM=";
           };
         };
 

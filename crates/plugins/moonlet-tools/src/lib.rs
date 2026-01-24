@@ -24,7 +24,7 @@
 
 use mlua::ffi::{self, lua_State};
 use moonlet_lua::handle::{self, Handle, HandleItem, HandleResult, Stream};
-use rhizome_moss_tools::{
+use normalize_tools::{
     ToolCategory, ToolResult, default_registry, get_tool,
     test_runners::{self, TestRunner},
 };

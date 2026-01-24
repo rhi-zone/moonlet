@@ -16,10 +16,11 @@ docs/.vitepress/dist/
 *.swp
 
 # Moss
-.moss/*
-!.moss/config.toml
-!.moss/duplicate-functions-allow
-!.moss/duplicate-types-allow
-!.moss/hotspots-allow
-!.moss/large-files-allow
-!.moss/memory/
+.normalize/*
+!.normalize/config.toml
+!.normalize/duplicate-functions-allow
+!.normalize/duplicate-types-allow
+!.normalize/hotspots-allow
+!.normalize/large-files-allow
+!.normalize/memory/
+.moss/

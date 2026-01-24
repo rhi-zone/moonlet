@@ -442,9 +442,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.2.53"
+version = "1.2.54"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "755d2fce177175ffca841e9a06afdb2c4ab0f593d53b4dee48147dfaade85932"
+checksum = "6354c81bbfd62d9cfa9cb3c773c2b7b2a3a482d569de977fd0e961f6e7c00583"
 dependencies = [
  "find-msvc-tools",
  "jobserver",
@@ -1432,7 +1432,7 @@ dependencies = [
  "libc",
  "percent-encoding",
  "pin-project-lite",
- "socket2 0.6.1",
+ "socket2 0.6.2",
  "system-configuration",
  "tokio",
  "tower-service",
@@ -1803,9 +1803,9 @@ dependencies = [
 
 [[package]]
 name = "libm"
-version = "0.2.15"
+version = "0.2.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f9fbbcab51052fe104eb5e5d351cf728d30a5be1fe14d9be8a3b097481fb97de"
+checksum = "b6d2cec3eae94f9f509c767b45932f1ada8350c4bdb85af2fcab4a3c14807981"
 
 [[package]]
 name = "libredox"
@@ -2248,8 +2248,8 @@ name = "moonlet-moss"
 version = "0.1.0"
 dependencies = [
  "mlua",
- "rhizome-moss",
- "rhizome-moss-languages",
+ "normalize",
+ "normalize-languages",
  "serde_json",
 ]
 
@@ -2258,7 +2258,7 @@ name = "moonlet-packages"
 version = "0.1.0"
 dependencies = [
  "mlua",
- "rhizome-moss-packages",
+ "normalize-packages",
  "serde_json",
 ]
 
@@ -2267,7 +2267,7 @@ name = "moonlet-sessions"
 version = "0.1.0"
 dependencies = [
  "mlua",
- "rhizome-moss-sessions",
+ "normalize-sessions",
  "serde_json",
 ]
 
@@ -2277,7 +2277,7 @@ version = "0.1.0"
 dependencies = [
  "mlua",
  "moonlet-lua",
- "rhizome-moss-tools",
+ "normalize-tools",
  "serde_json",
 ]
 
@@ -2306,6 +2306,187 @@ checksum = "d273983c5a657a70a3e8f2a01329822f3b8c8172b73826411a55751e404a0a4a"
 dependencies = [
  "memchr",
  "minimal-lexical",
+]
+
+[[package]]
+name = "normalize"
+version = "0.1.0"
+source = "git+https://github.com/rhi-zone/normalize#273bfb9c956c7ef204a9eda8801def586e2a08ad"
+dependencies = [
+ "ast-grep-core",
+ "axum 0.8.8",
+ "chrono",
+ "clap",
+ "dirs 5.0.1",
+ "dotenvy",
+ "flate2",
+ "git2",
+ "glob",
+ "grep-matcher",
+ "grep-regex",
+ "grep-searcher",
+ "ignore",
+ "jaq-core",
+ "jaq-json",
+ "jaq-std",
+ "libc",
+ "libsql",
+ "normalize-cli-parser",
+ "normalize-core",
+ "normalize-derive",
+ "normalize-jsonschema",
+ "normalize-languages",
+ "normalize-openapi",
+ "normalize-packages",
+ "normalize-rules",
+ "normalize-sessions",
+ "normalize-tools",
+ "normalize-typegen",
+ "notify",
+ "nu-ansi-term",
+ "nucleo-matcher",
+ "rayon",
+ "regex",
+ "schemars 1.2.0",
+ "serde",
+ "serde_json",
+ "streaming-iterator",
+ "tar",
+ "tokio",
+ "toml",
+ "tower-lsp",
+ "tree-sitter",
+ "ureq",
+ "utoipa",
+ "walkdir",
+ "zip",
+]
+
+[[package]]
+name = "normalize-cli-parser"
+version = "0.1.0"
+source = "git+https://github.com/rhi-zone/normalize#273bfb9c956c7ef204a9eda8801def586e2a08ad"
+dependencies = [
+ "regex",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "normalize-core"
+version = "0.1.0"
+source = "git+https://github.com/rhi-zone/normalize#273bfb9c956c7ef204a9eda8801def586e2a08ad"
+
+[[package]]
+name = "normalize-derive"
+version = "0.1.0"
+source = "git+https://github.com/rhi-zone/normalize#273bfb9c956c7ef204a9eda8801def586e2a08ad"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "normalize-jsonschema"
+version = "0.1.0"
+source = "git+https://github.com/rhi-zone/normalize#273bfb9c956c7ef204a9eda8801def586e2a08ad"
+dependencies = [
+ "serde_json",
+]
+
+[[package]]
+name = "normalize-languages"
+version = "0.1.0"
+source = "git+https://github.com/rhi-zone/normalize#273bfb9c956c7ef204a9eda8801def586e2a08ad"
+dependencies = [
+ "ast-grep-core",
+ "dirs 5.0.1",
+ "libloading",
+ "libsql",
+ "serde_json",
+ "tree-sitter",
+ "tree-sitter-language",
+]
+
+[[package]]
+name = "normalize-openapi"
+version = "0.1.0"
+source = "git+https://github.com/rhi-zone/normalize#273bfb9c956c7ef204a9eda8801def586e2a08ad"
+dependencies = [
+ "serde_json",
+]
+
+[[package]]
+name = "normalize-packages"
+version = "0.1.0"
+source = "git+https://github.com/rhi-zone/normalize#273bfb9c956c7ef204a9eda8801def586e2a08ad"
+dependencies = [
+ "flate2",
+ "quick-xml",
+ "rayon",
+ "serde",
+ "serde_json",
+ "serde_json_lenient",
+ "serde_yaml",
+ "tar",
+ "toml",
+ "ureq",
+ "urlencoding",
+ "xz2",
+ "zstd",
+]
+
+[[package]]
+name = "normalize-rules"
+version = "0.1.0"
+source = "git+https://github.com/rhi-zone/normalize#273bfb9c956c7ef204a9eda8801def586e2a08ad"
+dependencies = [
+ "dirs 5.0.1",
+ "glob",
+ "ignore",
+ "normalize-core",
+ "normalize-derive",
+ "normalize-languages",
+ "regex",
+ "schemars 1.2.0",
+ "serde",
+ "streaming-iterator",
+ "toml",
+ "tree-sitter",
+]
+
+[[package]]
+name = "normalize-sessions"
+version = "0.1.0"
+source = "git+https://github.com/rhi-zone/normalize#273bfb9c956c7ef204a9eda8801def586e2a08ad"
+dependencies = [
+ "regex",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "normalize-tools"
+version = "0.1.0"
+source = "git+https://github.com/rhi-zone/normalize#273bfb9c956c7ef204a9eda8801def586e2a08ad"
+dependencies = [
+ "rayon",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "toml",
+ "which 7.0.3",
+]
+
+[[package]]
+name = "normalize-typegen"
+version = "0.1.0"
+source = "git+https://github.com/rhi-zone/normalize#273bfb9c956c7ef204a9eda8801def586e2a08ad"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -2357,9 +2538,9 @@ dependencies = [
 
 [[package]]
 name = "num-conv"
-version = "0.1.0"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "51d515d32fb182ee37cda2ccdcb92950d6a3c2893aa280e540671c2cd0f3b1d9"
+checksum = "cf97ec579c3c42f953ef76dbf8d55ac91fb219dde70e49aa4a6b7d74e9919050"
 
 [[package]]
 name = "num-traits"
@@ -2621,9 +2802,9 @@ dependencies = [
 
 [[package]]
 name = "proc-macro2"
-version = "1.0.105"
+version = "1.0.106"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "535d180e0ecab6268a3e718bb9fd44db66bbbc256257165fc699dadf70d16fe7"
+checksum = "8fd00f0bb2e90d81d1044c2b32617f68fcb9fa3bb7640c23e9c748e53fb30934"
 dependencies = [
  "unicode-ident",
 ]
@@ -2674,7 +2855,7 @@ dependencies = [
  "quinn-udp",
  "rustc-hash 2.1.1",
  "rustls 0.23.36",
- "socket2 0.6.1",
+ "socket2 0.6.2",
  "thiserror 2.0.18",
  "tokio",
  "tracing",
@@ -2711,16 +2892,16 @@ dependencies = [
  "cfg_aliases",
  "libc",
  "once_cell",
- "socket2 0.6.1",
+ "socket2 0.6.2",
  "tracing",
  "windows-sys 0.60.2",
 ]
 
 [[package]]
 name = "quote"
-version = "1.0.43"
+version = "1.0.44"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dc74d9a594b72ae6656596548f56f667211f8a97b3d4c3d467150794690dc40a"
+checksum = "21b2ebcf727b7760c461f091f9f0f539b77b8e87f2fd88131e7f1b433b3cece4"
 dependencies = [
  "proc-macro2",
 ]
@@ -2951,165 +3132,6 @@ dependencies = [
  "wasm-streams",
  "web-sys",
  "webpki-roots 1.0.5",
-]
-
-[[package]]
-name = "rhizome-moss"
-version = "0.1.0"
-source = "git+https://github.com/rhizome-lab/moss#79871d6cec073e9ac7d18b91958982a6820b5659"
-dependencies = [
- "ast-grep-core",
- "axum 0.8.8",
- "chrono",
- "clap",
- "dirs 5.0.1",
- "dotenvy",
- "flate2",
- "git2",
- "glob",
- "grep-matcher",
- "grep-regex",
- "grep-searcher",
- "ignore",
- "jaq-core",
- "jaq-json",
- "jaq-std",
- "libc",
- "libsql",
- "notify",
- "nu-ansi-term",
- "nucleo-matcher",
- "rayon",
- "regex",
- "rhizome-moss-core",
- "rhizome-moss-derive",
- "rhizome-moss-jsonschema",
- "rhizome-moss-languages",
- "rhizome-moss-openapi",
- "rhizome-moss-packages",
- "rhizome-moss-rules",
- "rhizome-moss-sessions",
- "rhizome-moss-tools",
- "schemars 1.2.0",
- "serde",
- "serde_json",
- "streaming-iterator",
- "tar",
- "tokio",
- "toml",
- "tower-lsp",
- "tree-sitter",
- "ureq",
- "utoipa",
- "walkdir",
- "zip",
-]
-
-[[package]]
-name = "rhizome-moss-core"
-version = "0.1.0"
-source = "git+https://github.com/rhizome-lab/moss#79871d6cec073e9ac7d18b91958982a6820b5659"
-
-[[package]]
-name = "rhizome-moss-derive"
-version = "0.1.0"
-source = "git+https://github.com/rhizome-lab/moss#79871d6cec073e9ac7d18b91958982a6820b5659"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
-name = "rhizome-moss-jsonschema"
-version = "0.1.0"
-source = "git+https://github.com/rhizome-lab/moss#79871d6cec073e9ac7d18b91958982a6820b5659"
-dependencies = [
- "serde_json",
-]
-
-[[package]]
-name = "rhizome-moss-languages"
-version = "0.1.0"
-source = "git+https://github.com/rhizome-lab/moss#79871d6cec073e9ac7d18b91958982a6820b5659"
-dependencies = [
- "ast-grep-core",
- "dirs 5.0.1",
- "libloading",
- "libsql",
- "serde_json",
- "tree-sitter",
- "tree-sitter-language",
-]
-
-[[package]]
-name = "rhizome-moss-openapi"
-version = "0.1.0"
-source = "git+https://github.com/rhizome-lab/moss#79871d6cec073e9ac7d18b91958982a6820b5659"
-dependencies = [
- "serde_json",
-]
-
-[[package]]
-name = "rhizome-moss-packages"
-version = "0.1.0"
-source = "git+https://github.com/rhizome-lab/moss#79871d6cec073e9ac7d18b91958982a6820b5659"
-dependencies = [
- "flate2",
- "quick-xml",
- "rayon",
- "serde",
- "serde_json",
- "serde_json_lenient",
- "serde_yaml",
- "tar",
- "toml",
- "ureq",
- "urlencoding",
- "xz2",
- "zstd",
-]
-
-[[package]]
-name = "rhizome-moss-rules"
-version = "0.1.0"
-source = "git+https://github.com/rhizome-lab/moss#79871d6cec073e9ac7d18b91958982a6820b5659"
-dependencies = [
- "dirs 5.0.1",
- "glob",
- "ignore",
- "regex",
- "rhizome-moss-core",
- "rhizome-moss-derive",
- "rhizome-moss-languages",
- "schemars 1.2.0",
- "serde",
- "streaming-iterator",
- "toml",
- "tree-sitter",
-]
-
-[[package]]
-name = "rhizome-moss-sessions"
-version = "0.1.0"
-source = "git+https://github.com/rhizome-lab/moss#79871d6cec073e9ac7d18b91958982a6820b5659"
-dependencies = [
- "regex",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "rhizome-moss-tools"
-version = "0.1.0"
-source = "git+https://github.com/rhizome-lab/moss#79871d6cec073e9ac7d18b91958982a6820b5659"
-dependencies = [
- "rayon",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "toml",
- "which 7.0.3",
 ]
 
 [[package]]
@@ -3582,9 +3604,9 @@ dependencies = [
 
 [[package]]
 name = "socket2"
-version = "0.6.1"
+version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "17129e116933cf371d018bb80ae557e889637989d8638274fb25622827b03881"
+checksum = "86f4aa3ad99f2088c990dfa82d367e19cb29268ed67c574d10d0a4bfe71f07e0"
 dependencies = [
  "libc",
  "windows-sys 0.60.2",
@@ -3738,9 +3760,9 @@ dependencies = [
 
 [[package]]
 name = "time"
-version = "0.3.45"
+version = "0.3.46"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f9e442fc33d7fdb45aa9bfeb312c095964abdf596f7567261062b2a7107aaabd"
+checksum = "9da98b7d9b7dad93488a84b8248efc35352b0b2657397d4167e7ad67e5d535e5"
 dependencies = [
  "deranged",
  "num-conv",
@@ -3751,9 +3773,9 @@ dependencies = [
 
 [[package]]
 name = "time-core"
-version = "0.1.7"
+version = "0.1.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8b36ee98fd31ec7426d599183e8fe26932a8dc1fb76ddb6214d05493377d34ca"
+checksum = "7694e1cfe791f8d31026952abf09c69ca6f6fa4e1a1229e18988f06a04a12dca"
 
 [[package]]
 name = "tinystr"
@@ -3792,7 +3814,7 @@ dependencies = [
  "parking_lot",
  "pin-project-lite",
  "signal-hook-registry",
- "socket2 0.6.1",
+ "socket2 0.6.2",
  "tokio-macros",
  "windows-sys 0.61.2",
 ]

@@ -17,7 +17,7 @@
 #![allow(non_snake_case)] // Lua C API convention: L for lua_State
 
 use mlua::ffi::{self, lua_State};
-use rhizome_moss_sessions::{
+use normalize_sessions::{
     ContentBlock, Message, Role, Session, SessionFile, TokenUsage, Turn, detect_format, get_format,
     list_formats, parse_session, parse_session_with_format,
 };
