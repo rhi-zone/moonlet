@@ -2203,8 +2203,8 @@ name = "moonlet-fs"
 version = "0.1.0"
 dependencies = [
  "mlua",
- "rhi-portals-filesystem",
- "rhi-portals-io",
+ "portals-filesystem",
+ "portals-io",
  "serde_json",
 ]
 
@@ -2573,6 +2573,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7edddbd0b52d732b21ad9a5fab5c704c14cd949e5e9a1ec5929a24fded1b904c"
 
 [[package]]
+name = "portals-filesystem"
+version = "0.1.0"
+source = "git+https://github.com/rhi-zone/portals#b02738d7b086780e3ccde7cc6cb9a32e7202e7a3"
+dependencies = [
+ "portals-io",
+]
+
+[[package]]
+name = "portals-io"
+version = "0.1.0"
+source = "git+https://github.com/rhi-zone/portals#b02738d7b086780e3ccde7cc6cb9a32e7202e7a3"
+
+[[package]]
 name = "potential_utf"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2939,19 +2952,6 @@ dependencies = [
  "web-sys",
  "webpki-roots 1.0.5",
 ]
-
-[[package]]
-name = "rhi-portals-filesystem"
-version = "0.1.0"
-source = "git+https://github.com/rhi-zone/portals#1a40c652c4ddf6e4ced5362647614b18577f7bdc"
-dependencies = [
- "rhi-portals-io",
-]
-
-[[package]]
-name = "rhi-portals-io"
-version = "0.1.0"
-source = "git+https://github.com/rhi-zone/portals#1a40c652c4ddf6e4ced5362647614b18577f7bdc"
 
 [[package]]
 name = "rhizome-moss"
