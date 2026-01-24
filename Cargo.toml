@@ -1,28 +1,28 @@
 [workspace]
 resolver = "2"
-members = ["crates/spore", "crates/spore-core", "crates/spore-lua", "crates/plugins/*"]
+members = ["crates/moonlet", "crates/moonlet-core", "crates/moonlet-lua", "crates/plugins/*"]
 
 [workspace.package]
 version = "0.1.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/rhizome-lab/spore"
+repository = "https://github.com/rhi-zone/moonlet"
 
 [workspace.dependencies]
 # Internal crates
-rhizome-spore = { path = "crates/spore" }
-rhizome-spore-core = { path = "crates/spore-core" }
-rhizome-spore-lua = { path = "crates/spore-lua" }
+moonlet = { path = "crates/moonlet" }
+moonlet-core = { path = "crates/moonlet-core" }
+moonlet-lua = { path = "crates/moonlet-lua" }
 
 # Plugins (dynamically loaded C ABI)
-rhizome-spore-fs = { path = "crates/plugins/spore-fs" }
-rhizome-spore-llm = { path = "crates/plugins/spore-llm" }
-rhizome-spore-moss = { path = "crates/plugins/spore-moss" }
-rhizome-spore-sessions = { path = "crates/plugins/spore-sessions" }
-rhizome-spore-tools = { path = "crates/plugins/spore-tools" }
-rhizome-spore-packages = { path = "crates/plugins/spore-packages" }
-rhizome-spore-embed = { path = "crates/plugins/spore-embed" }
-rhizome-spore-libsql = { path = "crates/plugins/spore-libsql" }
+moonlet-fs = { path = "crates/plugins/moonlet-fs" }
+moonlet-llm = { path = "crates/plugins/moonlet-llm" }
+moonlet-moss = { path = "crates/plugins/moonlet-moss" }
+moonlet-sessions = { path = "crates/plugins/moonlet-sessions" }
+moonlet-tools = { path = "crates/plugins/moonlet-tools" }
+moonlet-packages = { path = "crates/plugins/moonlet-packages" }
+moonlet-embed = { path = "crates/plugins/moonlet-embed" }
+moonlet-libsql = { path = "crates/plugins/moonlet-libsql" }
 
 # Pith interfaces
 rhizome-pith-io = { git = "https://github.com/rhizome-lab/pith" }

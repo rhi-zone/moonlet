@@ -1,0 +1,16 @@
+[package]
+name = "moonlet-fs"
+description = "Filesystem plugin for moonlet with capability-based security"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+mlua = { version = "0.10", features = ["luajit", "vendored"], default-features = false }
+serde_json = "1"
+rhizome-pith-io.workspace = true
+rhizome-pith-filesystem.workspace = true

@@ -1,0 +1,16 @@
+[package]
+name = "moonlet-lua"
+description = "Lua runtime for moonlet agents"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+moonlet-core.workspace = true
+mlua.workspace = true
+libloading.workspace = true
+dirs.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true

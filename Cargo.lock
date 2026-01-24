@@ -2162,6 +2162,126 @@ dependencies = [
 ]
 
 [[package]]
+name = "moonlet"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "mlua",
+ "moonlet-lua",
+ "schemars 0.8.22",
+ "serde",
+ "serde_json",
+ "tokio",
+ "toml",
+]
+
+[[package]]
+name = "moonlet-core"
+version = "0.1.0"
+dependencies = [
+ "dotenvy",
+ "libsql",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+]
+
+[[package]]
+name = "moonlet-embed"
+version = "0.1.0"
+dependencies = [
+ "mlua",
+ "moonlet-lua",
+ "reqwest",
+ "rig-core",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "moonlet-fs"
+version = "0.1.0"
+dependencies = [
+ "mlua",
+ "rhizome-pith-filesystem",
+ "rhizome-pith-io",
+ "serde_json",
+]
+
+[[package]]
+name = "moonlet-libsql"
+version = "0.1.0"
+dependencies = [
+ "libsql",
+ "mlua",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "moonlet-llm"
+version = "0.1.0"
+dependencies = [
+ "mlua",
+ "moonlet-lua",
+ "reqwest",
+ "rig-core",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "moonlet-lua"
+version = "0.1.0"
+dependencies = [
+ "dirs 6.0.0",
+ "libloading",
+ "mlua",
+ "moonlet-core",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "moonlet-moss"
+version = "0.1.0"
+dependencies = [
+ "mlua",
+ "rhizome-moss",
+ "rhizome-moss-languages",
+ "serde_json",
+]
+
+[[package]]
+name = "moonlet-packages"
+version = "0.1.0"
+dependencies = [
+ "mlua",
+ "rhizome-moss-packages",
+ "serde_json",
+]
+
+[[package]]
+name = "moonlet-sessions"
+version = "0.1.0"
+dependencies = [
+ "mlua",
+ "rhizome-moss-sessions",
+ "serde_json",
+]
+
+[[package]]
+name = "moonlet-tools"
+version = "0.1.0"
+dependencies = [
+ "mlua",
+ "moonlet-lua",
+ "rhizome-moss-tools",
+ "serde_json",
+]
+
+[[package]]
 name = "native-tls"
 version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2991,126 +3111,6 @@ dependencies = [
 name = "rhizome-pith-io"
 version = "0.1.0"
 source = "git+https://github.com/rhizome-lab/pith#6dc78dbc31237d8e2f8751282fc546e920f7e97e"
-
-[[package]]
-name = "rhizome-spore"
-version = "0.1.0"
-dependencies = [
- "clap",
- "mlua",
- "rhizome-spore-lua",
- "schemars 0.8.22",
- "serde",
- "serde_json",
- "tokio",
- "toml",
-]
-
-[[package]]
-name = "rhizome-spore-core"
-version = "0.1.0"
-dependencies = [
- "dotenvy",
- "libsql",
- "tempfile",
- "thiserror 2.0.18",
- "tokio",
-]
-
-[[package]]
-name = "rhizome-spore-embed"
-version = "0.1.0"
-dependencies = [
- "mlua",
- "reqwest",
- "rhizome-spore-lua",
- "rig-core",
- "serde_json",
- "tokio",
-]
-
-[[package]]
-name = "rhizome-spore-fs"
-version = "0.1.0"
-dependencies = [
- "mlua",
- "rhizome-pith-filesystem",
- "rhizome-pith-io",
- "serde_json",
-]
-
-[[package]]
-name = "rhizome-spore-libsql"
-version = "0.1.0"
-dependencies = [
- "libsql",
- "mlua",
- "serde_json",
- "tokio",
-]
-
-[[package]]
-name = "rhizome-spore-llm"
-version = "0.1.0"
-dependencies = [
- "mlua",
- "reqwest",
- "rhizome-spore-lua",
- "rig-core",
- "serde_json",
- "tokio",
-]
-
-[[package]]
-name = "rhizome-spore-lua"
-version = "0.1.0"
-dependencies = [
- "dirs 6.0.0",
- "libloading",
- "mlua",
- "rhizome-spore-core",
- "serde",
- "serde_json",
- "tokio",
-]
-
-[[package]]
-name = "rhizome-spore-moss"
-version = "0.1.0"
-dependencies = [
- "mlua",
- "rhizome-moss",
- "rhizome-moss-languages",
- "serde_json",
-]
-
-[[package]]
-name = "rhizome-spore-packages"
-version = "0.1.0"
-dependencies = [
- "mlua",
- "rhizome-moss-packages",
- "serde_json",
-]
-
-[[package]]
-name = "rhizome-spore-sessions"
-version = "0.1.0"
-dependencies = [
- "mlua",
- "rhizome-moss-sessions",
- "serde_json",
-]
-
-[[package]]
-name = "rhizome-spore-tools"
-version = "0.1.0"
-dependencies = [
- "mlua",
- "rhizome-moss-tools",
- "rhizome-spore-lua",
- "serde_json",
-]
 
 [[package]]
 name = "rig-core"

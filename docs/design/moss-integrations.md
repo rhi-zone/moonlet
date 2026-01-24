@@ -1,6 +1,6 @@
 # Moss Integrations Design
 
-Design document for adding `spore-moss-tools` and `spore-moss-packages` integrations.
+Design document for adding `moonlet-moss-tools` and `moonlet-moss-packages` integrations.
 
 ## Context
 
@@ -152,8 +152,8 @@ Rationale: Each integration is independent. Users enable what they need. Nesting
 crates/integrations/
 ├── spore-moss/           # existing
 ├── spore-moss-sessions/  # existing
-├── spore-moss-tools/     # new
-└── spore-moss-packages/  # new
+├── moonlet-moss-tools/     # new
+└── moonlet-moss-packages/  # new
 ```
 
 Config:
@@ -266,7 +266,7 @@ Follow-up: Dedicated capability system design doc.
 
 ## Proposed Lua API
 
-### spore-moss-tools
+### moonlet-moss-tools
 
 ```lua
 -- Tool registry
@@ -313,7 +313,7 @@ tools.test.start(name?, args?, opts?)  -- start tests, return handle
 -- Returns Handle (see async design below)
 ```
 
-### spore-moss-packages
+### moonlet-moss-packages
 
 ```lua
 -- Ecosystem detection and queries
@@ -582,12 +582,12 @@ Before implementing Phase 2 (async Handle), flesh out:
 
 ### Phase 1: Sync API
 
-1. Create `spore-moss-tools` crate
+1. Create `moonlet-moss-tools` crate
    - Tool registry bindings (list, detect, run, fix)
    - Test runner bindings (list, detect, run)
    - Sync only, captured output
 
-2. Create `spore-moss-packages` crate
+2. Create `moonlet-moss-packages` crate
    - Ecosystem bindings (detect, query, dependencies, tree, audit)
    - Index bindings (list, fetch)
 
@@ -624,14 +624,14 @@ This is a significant architectural change. See separate design doc (to be creat
 ## Dependencies
 
 ```toml
-# spore-moss-tools
+# moonlet-moss-tools
 [dependencies]
 rhizome-spore-lua.workspace = true
 rhizome-moss-tools = { git = "https://github.com/rhizome-lab/moss" }
 mlua.workspace = true
 serde_json.workspace = true
 
-# spore-moss-packages
+# moonlet-moss-packages
 [dependencies]
 rhizome-spore-lua.workspace = true
 rhizome-moss-packages = { git = "https://github.com/rhizome-lab/moss", features = ["ecosystem", "index"] }

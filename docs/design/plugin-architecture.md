@@ -1,10 +1,10 @@
 # Plugin Architecture Design
 
-Spore integrations as dynamically loaded plugins instead of compiled-in modules.
+Moonlet integrations as dynamically loaded plugins instead of compiled-in modules.
 
 ## Goals
 
-1. **Minimal core**: spore binary is just runtime + plugin loader
+1. **Minimal core**: moonlet binary is just runtime + plugin loader
 2. **Dynamic loading**: integrations loaded at runtime from shared libraries
 3. **Independent distribution**: plugins can be built/distributed separately
 4. **Capability-based API**: capabilities are userdata with methods, not global functions
@@ -20,11 +20,11 @@ See `~/git/lotus/crates/plugins/*/src/lib.rs` for reference implementation:
 ## Current State (Compiled-In)
 
 ```
-spore (binary)
-├── spore-lua (runtime)
-├── spore-llm (compiled in)
-├── spore-moss (compiled in)
-├── spore-moss-tools (compiled in)
+moonlet (binary)
+├── moonlet-lua (runtime)
+├── moonlet-llm (compiled in)
+├── moonlet-moss (compiled in)
+├── moonlet-moss-tools (compiled in)
 └── ...
 ```
 
@@ -38,14 +38,14 @@ moss = false    # code is still in binary
 ## Target State (Dynamic Plugins)
 
 ```
-spore (binary)
-├── spore-lua (runtime)
+moonlet (binary)
+├── moonlet-lua (runtime)
 └── plugin loader
 
-~/.spore/plugins/
-├── libspore_fs.so
-├── libspore_ai.so
-├── libspore_moss.so
+~/.moonlet/plugins/
+├── libmoonlet_fs.so
+├── libmoonlet_ai.so
+├── libmoonlet_moss.so
 └── ...
 ```
 
@@ -53,7 +53,7 @@ spore (binary)
 
 ### Why Not String Registry
 
-A central registry like `spore.capability("fs", ...)` has problems:
+A central registry like `moonlet.capability("fs", ...)` has problems:
 - Who owns the "fs" name? Conflicts between plugins?
 - Discovery is opaque
 - Not Lua-idiomatic
@@ -64,9 +64,9 @@ Plugins are Lua modules loaded via `require`, following standard Lua C module co
 
 ```lua
 -- Load plugin modules
-local fs = require("spore.fs")
-local ai = require("spore.ai")
-local moss = require("spore.moss")
+local fs = require("moonlet.fs")
+local ai = require("moonlet.ai")
+local moss = require("moonlet.moss")
 
 -- Each module exports a capability constructor
 local home = fs.capability({ path = os.getenv("HOME"), mode = "r" })
@@ -90,7 +90,7 @@ local exists = fs.exists("/some/path")  -- maybe some ops are safe without cap?
 ```
 
 Benefits:
-- **Namespacing**: `spore.fs`, `rhizome.moss`, `myorg.custom`
+- **Namespacing**: `moonlet.fs`, `rhizome.moss`, `myorg.custom`
 - **Familiar pattern**: standard Lua `require`
 - **No central registry**: module path is the identity
 - **Capability separation**: constructor vs methods
@@ -100,13 +100,13 @@ Benefits:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│ Host (spore-lua)                                            │
+│ Host (moonlet-lua)                                            │
 │                                                             │
-│  require("spore.fs")                                        │
+│  require("moonlet.fs")                                        │
 │    │                                                        │
-│    ├─► Lua require searcher finds spore.fs                  │
-│    ├─► Loads libspore_fs.so via package.cpath               │
-│    ├─► Calls luaopen_spore_fs(L)                            │
+│    ├─► Lua require searcher finds moonlet.fs                  │
+│    ├─► Loads libmoonlet_fs.so via package.cpath               │
+│    ├─► Calls luaopen_moonlet_fs(L)                            │
 │    └─► Plugin returns module table                          │
 │                                                             │
 │  fs.capability({ path = "/tmp", mode = "rw" })              │
@@ -127,13 +127,13 @@ Benefits:
                            │ package.cpath / dlopen
                            ▼
 ┌─────────────────────────────────────────────────────────────┐
-│ Plugin (spore/fs.so or libspore_fs.so)                      │
+│ Plugin (moonlet/fs.so or libmoonlet_fs.so)                      │
 │                                                             │
 │  Standard Lua C module pattern                              │
 │  Uses raw lua_State*, NOT mlua                              │
 │                                                             │
 │  Exports:                                                   │
-│    luaopen_spore_fs(L) → module table                       │
+│    luaopen_moonlet_fs(L) → module table                       │
 │                                                             │
 │  Module table contains:                                     │
 │    - capability(params) → constructor function              │
@@ -147,7 +147,7 @@ Benefits:
 
 ## Plugin C ABI
 
-Plugins are standard Lua C modules. The only spore-specific addition is optional metadata for version checking.
+Plugins are standard Lua C modules. The only moonlet-specific addition is optional metadata for version checking.
 
 ```c
 #include <lua.h>
@@ -157,20 +157,20 @@ typedef struct {
     const char* name;           // "fs", "ai", "moss"
     const char* version;        // "0.1.0"
     uint32_t abi_version;       // for compatibility check
-} SporePluginInfo;
+} MoonletPluginInfo;
 
 // Optional export - host can check before loading
-SporePluginInfo spore_plugin_info(void);
+MoonletPluginInfo moonlet_plugin_info(void);
 
 // Required: standard Lua C module entry point
 // Returns module table with capability() constructor and utilities
-int luaopen_spore_fs(lua_State* L);
+int luaopen_moonlet_fs(lua_State* L);
 ```
 
 Plugins define their own userdata types internally with their own metatables:
 
 ```
-luaopen_spore_fs(L)
+luaopen_moonlet_fs(L)
   └─► returns module table
         ├─► capability(params) → creates FsCapability userdata
         │     └─► metatable: read, write, list, open, attenuate, ...
@@ -182,7 +182,7 @@ luaopen_spore_fs(L)
 ## Rust Plugin Implementation
 
 ```rust
-// crates/plugins/spore-fs/src/lib.rs
+// crates/plugins/moonlet-fs/src/lib.rs
 
 use std::ffi::c_int;
 use mlua::ffi::{self as lua, lua_State, luaL_Reg};
@@ -191,8 +191,8 @@ const ABI_VERSION: u32 = 1;
 
 // Optional: metadata export
 #[no_mangle]
-pub extern "C" fn spore_plugin_info() -> SporePluginInfo {
-    SporePluginInfo {
+pub extern "C" fn moonlet_plugin_info() -> MoonletPluginInfo {
+    MoonletPluginInfo {
         name: c"fs".as_ptr(),
         version: c"0.1.0".as_ptr(),
         abi_version: ABI_VERSION,
@@ -201,7 +201,7 @@ pub extern "C" fn spore_plugin_info() -> SporePluginInfo {
 
 // Required: standard Lua C module entry point
 #[no_mangle]
-pub unsafe extern "C" fn luaopen_spore_fs(L: *mut lua_State) -> c_int {
+pub unsafe extern "C" fn luaopen_moonlet_fs(L: *mut lua_State) -> c_int {
     // Register capability metatable
     register_capability_metatable(L);
     register_file_metatable(L);
@@ -240,7 +240,7 @@ static FILE_METHODS: &[luaL_Reg] = &[
 ];
 
 unsafe fn register_capability_metatable(L: *mut lua_State) {
-    luaL_newmetatable(L, c"spore.fs.Capability".as_ptr());
+    luaL_newmetatable(L, c"moonlet.fs.Capability".as_ptr());
     lua::lua_newtable(L);  // __index table
     luaL_setfuncs(L, CAP_METHODS.as_ptr(), 0);
     lua::lua_setfield(L, -2, c"__index".as_ptr());
@@ -363,7 +363,7 @@ pub unsafe extern "C" fn fs_write(L: *mut lua_State) -> c_int {
 ## Host Implementation
 
 ```rust
-// In spore-lua crate
+// In moonlet-lua crate
 
 use libloading::{Library, Symbol};
 use mlua::{Lua, UserData, UserDataMethods, Table, Result};
@@ -399,14 +399,14 @@ impl PluginLoader {
         Self {
             plugins: HashMap::new(),
             search_paths: vec![
-                dirs::home_dir().unwrap().join(".spore/plugins"),
-                PathBuf::from("/usr/lib/spore/plugins"),
+                dirs::home_dir().unwrap().join(".moonlet/plugins"),
+                PathBuf::from("/usr/lib/moonlet/plugins"),
             ],
         }
     }
 
     fn find_plugin_path(&self, name: &str) -> Option<PathBuf> {
-        let lib_name = format!("libspore_{}.so", name);  // platform-specific
+        let lib_name = format!("libmoonlet_{}.so", name);  // platform-specific
         for dir in &self.search_paths {
             let path = dir.join(&lib_name);
             if path.exists() {
@@ -428,9 +428,9 @@ impl PluginLoader {
             .map_err(|e| format!("failed to load plugin: {}", e))?;
 
         // Get plugin info
-        let info_fn: Symbol<extern "C" fn() -> SporePluginInfo> =
-            unsafe { lib.get(b"spore_plugin_info") }
-            .map_err(|_| "plugin missing spore_plugin_info")?;
+        let info_fn: Symbol<extern "C" fn() -> MoonletPluginInfo> =
+            unsafe { lib.get(b"moonlet_plugin_info") }
+            .map_err(|_| "plugin missing moonlet_plugin_info")?;
 
         let raw_info = info_fn();
 
@@ -451,9 +451,9 @@ impl PluginLoader {
         };
 
         // Get methods
-        let methods_fn: Symbol<extern "C" fn() -> *const SporeMethod> =
-            unsafe { lib.get(b"spore_plugin_methods") }
-            .map_err(|_| "plugin missing spore_plugin_methods")?;
+        let methods_fn: Symbol<extern "C" fn() -> *const MoonletMethod> =
+            unsafe { lib.get(b"moonlet_plugin_methods") }
+            .map_err(|_| "plugin missing moonlet_plugin_methods")?;
 
         let methods_ptr = methods_fn();
         let methods = parse_methods(methods_ptr);
@@ -508,9 +508,9 @@ impl PluginLoader {
     }
 }
 
-/// Register spore.capability() function
+/// Register moonlet.capability() function
 pub fn register_capability_api(lua: &Lua, loader: std::sync::Arc<std::sync::Mutex<PluginLoader>>) -> mlua::Result<()> {
-    let spore = lua.globals().get::<Table>("spore")?;
+    let moonlet = lua.globals().get::<Table>("moonlet")?;
 
     let cap_fn = lua.create_function(move |lua, args: (String, Table)| {
         let (plugin_name, params) = args;
@@ -518,7 +518,7 @@ pub fn register_capability_api(lua: &Lua, loader: std::sync::Arc<std::sync::Mute
         loader.create_capability(lua, &plugin_name, params)
     })?;
 
-    spore.set("capability", cap_fn)?;
+    moonlet.set("capability", cap_fn)?;
 
     Ok(())
 }
@@ -528,19 +528,19 @@ pub fn register_capability_api(lua: &Lua, loader: std::sync::Arc<std::sync::Mute
 
 Search order:
 1. Explicit path in config
-2. Project-local: `.spore/plugins/`
-3. User-local: `~/.spore/plugins/`
-4. System: `/usr/lib/spore/plugins/`
+2. Project-local: `.moonlet/plugins/`
+3. User-local: `~/.moonlet/plugins/`
+4. System: `/usr/lib/moonlet/plugins/`
 
 Naming convention:
-- Linux: `libspore_{name}.so`
-- macOS: `libspore_{name}.dylib`
-- Windows: `spore_{name}.dll`
+- Linux: `libmoonlet_{name}.so`
+- macOS: `libmoonlet_{name}.dylib`
+- Windows: `moonlet_{name}.dll`
 
 ## Config
 
 ```toml
-# .spore/config.toml
+# .moonlet/config.toml
 
 [plugins]
 # Enable plugin (loaded from search paths)
@@ -548,7 +548,7 @@ fs = true
 ai = true
 
 # Explicit path
-moss = { path = "/opt/spore/plugins/libspore_moss.so" }
+moss = { path = "/opt/moonlet/plugins/libmoonlet_moss.so" }
 
 # Disabled
 experimental = false
@@ -574,24 +574,24 @@ experimental = false
 ## Implementation Plan
 
 ### Phase 1: Plugin Loader
-- Create `spore-plugin-loader` crate (or add to `spore-lua`)
+- Create `moonlet-plugin-loader` crate (or add to `moonlet-lua`)
 - Implement PluginLoader struct
-- Implement spore.capability() function
+- Implement moonlet.capability() function
 - Define C ABI types
 
 ### Phase 2: First Plugin
-- Create `spore-fs` plugin as cdylib
+- Create `moonlet-fs` plugin as cdylib
 - Implement basic fs operations (read, write, list, exists)
 - Test loading and calling
 
 ### Phase 3: Convert Existing Integrations
-- Convert spore-llm to plugin
-- Convert spore-moss to plugin
-- Convert spore-moss-tools to plugin
-- Convert spore-moss-packages to plugin
+- Convert moonlet-llm to plugin
+- Convert moonlet-moss to plugin
+- Convert moonlet-moss-tools to plugin
+- Convert moonlet-moss-packages to plugin
 
 ### Phase 4: Remove Compiled-In
-- Remove integration dependencies from spore binary
+- Remove integration dependencies from moonlet binary
 - Update config format
 - Update documentation
 
@@ -609,7 +609,7 @@ root_fs:write("/etc/passwd", "hacked")
 
 ### Solution: Capability Injection
 
-Scripts don't create capabilities - they receive them. The trusted host (spore runtime) creates capabilities based on policy, then passes them to scripts:
+Scripts don't create capabilities - they receive them. The trusted host (moonlet runtime) creates capabilities based on policy, then passes them to scripts:
 
 ```lua
 -- Host (trusted) creates capabilities before running script
@@ -647,7 +647,7 @@ return { main = main }
 
 **1. Remove constructors from script environment**
 
-The `require("spore.fs")` module is NOT available to scripts. Only the host has access.
+The `require("moonlet.fs")` module is NOT available to scripts. Only the host has access.
 
 ```rust
 impl Runtime {
@@ -691,12 +691,12 @@ impl Runtime {
 Host reads policy from config:
 
 ```toml
-# .spore/policy.toml
+# .moonlet/policy.toml
 
 [agent.caps.fs]
 project = { path = "${PROJECT_ROOT}", mode = "rw" }
 data = { path = "/data/datasets", mode = "r" }
-tmp = { path = "/tmp/spore-${AGENT_ID}", mode = "rw" }
+tmp = { path = "/tmp/moonlet-${AGENT_ID}", mode = "rw" }
 
 [agent.caps.ai]
 claude = { provider = "anthropic", model = "claude-3-5-sonnet" }
@@ -773,7 +773,7 @@ unsafe extern "C" fn fs_cap_attenuate(L: *mut lua_State) -> c_int {
 
 | Component | Access |
 |-----------|--------|
-| Host (spore binary) | Full - loads plugins, creates capabilities |
+| Host (moonlet binary) | Full - loads plugins, creates capabilities |
 | Policy file | Defines what capabilities to create |
 | Script entry point | Receives capabilities as arguments |
 | Script code | Uses capabilities, can attenuate |
@@ -797,14 +797,14 @@ AI operations are async (network calls). Options:
 ### 2. Capability Inheritance
 Should capabilities be able to derive restricted sub-capabilities?
 ```lua
-local fs = spore.capability("fs", {path = "/project", mode = "rw"})
+local fs = moonlet.capability("fs", {path = "/project", mode = "rw"})
 local readonly_fs = fs:restrict({mode = "r"})  -- derived capability
 ```
 
 ### 3. Capability Revocation
 Can capabilities be revoked after creation?
 ```lua
-local fs = spore.capability("fs", {...})
+local fs = moonlet.capability("fs", {...})
 fs:revoke()  -- subsequent calls fail
 ```
 
@@ -831,5 +831,5 @@ serde_json = "1"
 
 Nix packaging:
 - Each plugin is separate derivation
-- `spore-full` bundles common plugins
+- `moonlet-full` bundles common plugins
 - Plugins declare compatible ABI version

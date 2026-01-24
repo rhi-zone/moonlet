@@ -3,10 +3,10 @@ import { withMermaid } from 'vitepress-plugin-mermaid'
 
 export default withMermaid(
   defineConfig({
-    title: 'spore',
+    title: 'moonlet',
     description: 'Agentic AI framework with Lua scripting',
 
-    base: '/spore/',
+    base: '/moonlet/',
 
     themeConfig: {
       nav: [
@@ -46,7 +46,7 @@ export default withMermaid(
       ],
 
       socialLinks: [
-        { icon: 'github', link: 'https://github.com/rhizome-lab/spore' }
+        { icon: 'github', link: 'https://github.com/rhi-zone/moonlet' }
       ],
 
       search: {
@@ -54,7 +54,7 @@ export default withMermaid(
       },
 
       editLink: {
-        pattern: 'https://github.com/rhizome-lab/spore/edit/master/docs/:path',
+        pattern: 'https://github.com/rhi-zone/moonlet/edit/master/docs/:path',
         text: 'Edit this page on GitHub'
       },
     },

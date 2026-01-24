@@ -1,10 +1,20 @@
 #!/usr/bin/env bash
 set -e
 
-echo "Running cargo fmt check..."
-cargo fmt --all -- --check
-
-echo "Running cargo clippy..."
-cargo clippy --all-targets --all-features -- -D warnings
-
-echo "Pre-commit checks passed!"
+# Run in nix environment if available
+if command -v nix &> /dev/null && [ -f flake.nix ]; then
+    echo "Running pre-commit checks in nix environment..."
+    exec nix develop -c bash -c "
+        echo 'Running cargo fmt check...'
+        cargo fmt --all -- --check
+        echo 'Running cargo clippy...'
+        cargo clippy --all-targets --all-features -- -D warnings
+        echo 'Pre-commit checks passed!'
+    "
+else
+    echo "Running cargo fmt check..."
+    cargo fmt --all -- --check
+    echo "Running cargo clippy..."
+    cargo clippy --all-targets --all-features -- -D warnings
+    echo "Pre-commit checks passed!"
+fi
