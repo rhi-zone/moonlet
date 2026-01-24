@@ -2203,8 +2203,8 @@ name = "moonlet-fs"
 version = "0.1.0"
 dependencies = [
  "mlua",
- "rhizome-pith-filesystem",
- "rhizome-pith-io",
+ "rhi-portals-filesystem",
+ "rhi-portals-io",
  "serde_json",
 ]
 
@@ -2941,6 +2941,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "rhi-portals-filesystem"
+version = "0.1.0"
+source = "git+https://github.com/rhi-zone/portals#1a40c652c4ddf6e4ced5362647614b18577f7bdc"
+dependencies = [
+ "rhi-portals-io",
+]
+
+[[package]]
+name = "rhi-portals-io"
+version = "0.1.0"
+source = "git+https://github.com/rhi-zone/portals#1a40c652c4ddf6e4ced5362647614b18577f7bdc"
+
+[[package]]
 name = "rhizome-moss"
 version = "0.1.0"
 source = "git+https://github.com/rhizome-lab/moss#79871d6cec073e9ac7d18b91958982a6820b5659"
@@ -3098,19 +3111,6 @@ dependencies = [
  "toml",
  "which 7.0.3",
 ]
-
-[[package]]
-name = "rhizome-pith-filesystem"
-version = "0.1.0"
-source = "git+https://github.com/rhi-zone/portals#b08c5fba3e2ae25db2d4933f7a64c3549919001a"
-dependencies = [
- "rhizome-pith-io",
-]
-
-[[package]]
-name = "rhizome-pith-io"
-version = "0.1.0"
-source = "git+https://github.com/rhi-zone/portals#b08c5fba3e2ae25db2d4933f7a64c3549919001a"
 
 [[package]]
 name = "rig-core"
