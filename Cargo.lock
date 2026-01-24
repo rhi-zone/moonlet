@@ -2311,7 +2311,7 @@ dependencies = [
 [[package]]
 name = "normalize"
 version = "0.1.0"
-source = "git+https://github.com/rhi-zone/normalize#273bfb9c956c7ef204a9eda8801def586e2a08ad"
+source = "git+https://github.com/rhi-zone/normalize#d3282f5b27c5a502109d1c6ebbc7fe3d10a96db0"
 dependencies = [
  "ast-grep-core",
  "axum 0.8.8",
@@ -2365,7 +2365,7 @@ dependencies = [
 [[package]]
 name = "normalize-cli-parser"
 version = "0.1.0"
-source = "git+https://github.com/rhi-zone/normalize#273bfb9c956c7ef204a9eda8801def586e2a08ad"
+source = "git+https://github.com/rhi-zone/normalize#d3282f5b27c5a502109d1c6ebbc7fe3d10a96db0"
 dependencies = [
  "regex",
  "serde",
@@ -2375,12 +2375,12 @@ dependencies = [
 [[package]]
 name = "normalize-core"
 version = "0.1.0"
-source = "git+https://github.com/rhi-zone/normalize#273bfb9c956c7ef204a9eda8801def586e2a08ad"
+source = "git+https://github.com/rhi-zone/normalize#d3282f5b27c5a502109d1c6ebbc7fe3d10a96db0"
 
 [[package]]
 name = "normalize-derive"
 version = "0.1.0"
-source = "git+https://github.com/rhi-zone/normalize#273bfb9c956c7ef204a9eda8801def586e2a08ad"
+source = "git+https://github.com/rhi-zone/normalize#d3282f5b27c5a502109d1c6ebbc7fe3d10a96db0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2390,7 +2390,7 @@ dependencies = [
 [[package]]
 name = "normalize-jsonschema"
 version = "0.1.0"
-source = "git+https://github.com/rhi-zone/normalize#273bfb9c956c7ef204a9eda8801def586e2a08ad"
+source = "git+https://github.com/rhi-zone/normalize#d3282f5b27c5a502109d1c6ebbc7fe3d10a96db0"
 dependencies = [
  "serde_json",
 ]
@@ -2398,7 +2398,7 @@ dependencies = [
 [[package]]
 name = "normalize-languages"
 version = "0.1.0"
-source = "git+https://github.com/rhi-zone/normalize#273bfb9c956c7ef204a9eda8801def586e2a08ad"
+source = "git+https://github.com/rhi-zone/normalize#d3282f5b27c5a502109d1c6ebbc7fe3d10a96db0"
 dependencies = [
  "ast-grep-core",
  "dirs 5.0.1",
@@ -2412,7 +2412,7 @@ dependencies = [
 [[package]]
 name = "normalize-openapi"
 version = "0.1.0"
-source = "git+https://github.com/rhi-zone/normalize#273bfb9c956c7ef204a9eda8801def586e2a08ad"
+source = "git+https://github.com/rhi-zone/normalize#d3282f5b27c5a502109d1c6ebbc7fe3d10a96db0"
 dependencies = [
  "serde_json",
 ]
@@ -2420,7 +2420,7 @@ dependencies = [
 [[package]]
 name = "normalize-packages"
 version = "0.1.0"
-source = "git+https://github.com/rhi-zone/normalize#273bfb9c956c7ef204a9eda8801def586e2a08ad"
+source = "git+https://github.com/rhi-zone/normalize#d3282f5b27c5a502109d1c6ebbc7fe3d10a96db0"
 dependencies = [
  "flate2",
  "quick-xml",
@@ -2440,7 +2440,7 @@ dependencies = [
 [[package]]
 name = "normalize-rules"
 version = "0.1.0"
-source = "git+https://github.com/rhi-zone/normalize#273bfb9c956c7ef204a9eda8801def586e2a08ad"
+source = "git+https://github.com/rhi-zone/normalize#d3282f5b27c5a502109d1c6ebbc7fe3d10a96db0"
 dependencies = [
  "dirs 5.0.1",
  "glob",
@@ -2459,7 +2459,7 @@ dependencies = [
 [[package]]
 name = "normalize-sessions"
 version = "0.1.0"
-source = "git+https://github.com/rhi-zone/normalize#273bfb9c956c7ef204a9eda8801def586e2a08ad"
+source = "git+https://github.com/rhi-zone/normalize#d3282f5b27c5a502109d1c6ebbc7fe3d10a96db0"
 dependencies = [
  "regex",
  "serde",
@@ -2469,7 +2469,7 @@ dependencies = [
 [[package]]
 name = "normalize-tools"
 version = "0.1.0"
-source = "git+https://github.com/rhi-zone/normalize#273bfb9c956c7ef204a9eda8801def586e2a08ad"
+source = "git+https://github.com/rhi-zone/normalize#d3282f5b27c5a502109d1c6ebbc7fe3d10a96db0"
 dependencies = [
  "rayon",
  "serde",
@@ -2482,7 +2482,7 @@ dependencies = [
 [[package]]
 name = "normalize-typegen"
 version = "0.1.0"
-source = "git+https://github.com/rhi-zone/normalize#273bfb9c956c7ef204a9eda8801def586e2a08ad"
+source = "git+https://github.com/rhi-zone/normalize#d3282f5b27c5a502109d1c6ebbc7fe3d10a96db0"
 dependencies = [
  "serde",
  "serde_json",
