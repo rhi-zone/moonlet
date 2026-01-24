@@ -1,4 +1,4 @@
-//! Development tools plugin for spore.
+//! Development tools plugin for moonlet.
 //!
 //! Provides capability-based access to linters, formatters, type checkers, and test runners.
 //!
@@ -38,7 +38,7 @@ use std::sync::mpsc::channel;
 const ABI_VERSION: u32 = 1;
 
 /// Metatable name for ToolsCapability userdata.
-const TOOLS_CAP_METATABLE: &[u8] = b"spore.tools.Capability\0";
+const TOOLS_CAP_METATABLE: &[u8] = b"moonlet.tools.Capability\0";
 
 /// Plugin info for version checking.
 #[repr(C)]
@@ -84,7 +84,7 @@ pub extern "C" fn moonlet_plugin_info() -> PluginInfo {
 #[unsafe(no_mangle)]
 pub unsafe extern "C-unwind" fn luaopen_moonlet_tools(L: *mut lua_State) -> c_int {
     unsafe {
-        // Register Handle metatable (from spore-lua)
+        // Register Handle metatable (from moonlet-lua)
         handle::register_handle_metatable(L);
 
         // Register capability metatable

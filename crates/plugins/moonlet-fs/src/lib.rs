@@ -1,4 +1,4 @@
-//! Filesystem plugin for spore with capability-based security.
+//! Filesystem plugin for moonlet with capability-based security.
 //!
 //! This plugin provides sandboxed filesystem access through capabilities.
 //! Each capability is restricted to a root path and access mode (read/write).
@@ -20,13 +20,13 @@ use std::path::{Path, PathBuf};
 const ABI_VERSION: u32 = 1;
 
 /// Metatable name for FsCapability userdata.
-const FS_CAP_METATABLE: &[u8] = b"spore.fs.Capability\0";
+const FS_CAP_METATABLE: &[u8] = b"moonlet.fs.Capability\0";
 
 /// Metatable name for InputStream userdata.
-const INPUT_STREAM_METATABLE: &[u8] = b"spore.fs.InputStream\0";
+const INPUT_STREAM_METATABLE: &[u8] = b"moonlet.fs.InputStream\0";
 
 /// Metatable name for OutputStream userdata.
-const OUTPUT_STREAM_METATABLE: &[u8] = b"spore.fs.OutputStream\0";
+const OUTPUT_STREAM_METATABLE: &[u8] = b"moonlet.fs.OutputStream\0";
 
 /// Plugin info for version checking.
 #[repr(C)]

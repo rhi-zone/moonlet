@@ -1,4 +1,4 @@
-//! Code intelligence plugin for spore.
+//! Code intelligence plugin for moonlet.
 //!
 //! Provides capability-based access to code analysis, search, and editing.
 //!
@@ -48,7 +48,7 @@ use std::path::{Path, PathBuf};
 const ABI_VERSION: u32 = 1;
 
 /// Metatable name for MossCapability userdata.
-const NORMALIZE_CAP_METATABLE: &[u8] = b"spore.normalize.Capability\0";
+const NORMALIZE_CAP_METATABLE: &[u8] = b"moonlet.normalize.Capability\0";
 
 /// Plugin info for version checking.
 #[repr(C)]

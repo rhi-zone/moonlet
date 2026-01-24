@@ -1,4 +1,4 @@
-//! Session parsing plugin for spore.
+//! Session parsing plugin for moonlet.
 //!
 //! Provides capability-based access to AI conversation session parsing.
 //!
@@ -28,7 +28,7 @@ use std::path::{Path, PathBuf};
 const ABI_VERSION: u32 = 1;
 
 /// Metatable name for SessionsCapability userdata.
-const SESSIONS_CAP_METATABLE: &[u8] = b"spore.sessions.Capability\0";
+const SESSIONS_CAP_METATABLE: &[u8] = b"moonlet.sessions.Capability\0";
 
 /// Plugin info for version checking.
 #[repr(C)]

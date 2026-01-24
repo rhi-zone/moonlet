@@ -1,4 +1,4 @@
-//! LLM client plugin for spore.
+//! LLM client plugin for moonlet.
 //!
 //! Provides capability-based multi-provider LLM completions.
 //!
@@ -29,7 +29,7 @@ use std::sync::mpsc::channel;
 const ABI_VERSION: u32 = 1;
 
 /// Metatable name for LlmCapability userdata.
-const CAP_METATABLE: &[u8] = b"spore.llm.Capability\0";
+const CAP_METATABLE: &[u8] = b"moonlet.llm.Capability\0";
 
 /// Plugin info for version checking.
 #[repr(C)]

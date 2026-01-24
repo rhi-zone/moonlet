@@ -214,8 +214,8 @@ local h1 = tools.test.start("cargo")
 local h2 = tools.test.start("pytest")
 
 -- Poll returns handles that have data ready
-while spore.any_running({h1, h2}) do
-    local ready = spore.poll({h1, h2}, {timeout_ms = 100})
+while moonlet.any_running({h1, h2}) do
+    local ready = moonlet.poll({h1, h2}, {timeout_ms = 100})
     for _, h in ipairs(ready) do
         local line = h:read_line()
         if line then print(h.name .. ": " .. line) end
@@ -411,14 +411,14 @@ h:kill()         -- terminate the subprocess
 
 ```lua
 -- Check if any handles are still running
-spore.any_running({h1, h2, h3})  -- returns true/false
+moonlet.any_running({h1, h2, h3})  -- returns true/false
 
 -- Wait for any handle to have data (with timeout)
-local ready = spore.poll({h1, h2, h3}, {timeout_ms = 100})
+local ready = moonlet.poll({h1, h2, h3}, {timeout_ms = 100})
 -- Returns array of handles that have data ready
 
 -- Wait for all handles to complete
-local results = spore.wait_all({h1, h2, h3})
+local results = moonlet.wait_all({h1, h2, h3})
 -- Returns array of results in same order
 ```
 
@@ -573,10 +573,10 @@ Before implementing Phase 2 (async Handle), flesh out:
    - Expose methods: `is_running`, `read_stdout`, `read_stderr`, `read_any`, `drain_*`, `wait`, `kill`
    - Handle mutability (UserData methods take `&self`, but we need `&mut self` for some ops - use interior mutability with `RefCell` or `Mutex`)
 
-4. **`spore.poll` / `spore.any_running` / `spore.wait_all`**:
+4. **`moonlet.poll` / `moonlet.any_running` / `moonlet.wait_all`**:
    - These are global functions, not methods on Handle
    - Need to extract receivers from multiple Handle userdata values
-   - Consider: should these live in `spore-lua` (shared infra) or a new `spore-async` crate?
+   - Consider: should these live in `moonlet-lua` (shared infra) or a new `moonlet-async` crate?
 
 ## Implementation Plan
 
@@ -595,8 +595,8 @@ Before implementing Phase 2 (async Handle), flesh out:
 
 ### Phase 2: Async Handle
 
-1. Add `Handle` type to `spore-lua` (shared infrastructure)
-2. Add `spore.poll`, `spore.any_running`, `spore.wait_all`
+1. Add `Handle` type to `moonlet-lua` (shared infrastructure)
+2. Add `moonlet.poll`, `moonlet.any_running`, `moonlet.wait_all`
 3. Add `tools.test.start()` returning Handle
 
 ### Phase 3: Capabilities (Future)
@@ -605,10 +605,10 @@ Separate design doc for capability system affecting all integrations.
 
 ### Phase 4: CFFI Plugin Architecture (Future)
 
-Current integrations are compiled directly into the spore binary. A CFFI-based plugin system would allow:
+Current integrations are compiled directly into the moonlet binary. A CFFI-based plugin system would allow:
 
 - Dynamically loaded integrations (`.so`/`.dylib` files)
-- Adding integrations without recompiling spore
+- Adding integrations without recompiling moonlet
 - Distributing integrations as separate packages
 - Language-agnostic plugins (any language that can produce C-compatible shared libraries)
 

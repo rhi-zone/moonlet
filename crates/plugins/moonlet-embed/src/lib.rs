@@ -1,4 +1,4 @@
-//! Embedding generation plugin for spore.
+//! Embedding generation plugin for moonlet.
 //!
 //! Provides capability-based multi-provider embedding generation.
 //!
@@ -28,7 +28,7 @@ use std::sync::mpsc::channel;
 const ABI_VERSION: u32 = 1;
 
 /// Metatable name for EmbedCapability userdata.
-const CAP_METATABLE: &[u8] = b"spore.embed.Capability\0";
+const CAP_METATABLE: &[u8] = b"moonlet.embed.Capability\0";
 
 /// Plugin info for version checking.
 #[repr(C)]

@@ -2244,7 +2244,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "moonlet-moss"
+name = "moonlet-normalize"
 version = "0.1.0"
 dependencies = [
  "mlua",

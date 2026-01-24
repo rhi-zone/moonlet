@@ -260,15 +260,15 @@ impl Default for PluginLoader {
 fn library_filename(name: &str) -> String {
     #[cfg(target_os = "linux")]
     {
-        format!("librhizome_spore_{}.so", name)
+        format!("libmoonlet_{}.so", name)
     }
     #[cfg(target_os = "macos")]
     {
-        format!("librhizome_spore_{}.dylib", name)
+        format!("libmoonlet_{}.dylib", name)
     }
     #[cfg(target_os = "windows")]
     {
-        format!("rhizome_spore_{}.dll", name)
+        format!("moonlet_{}.dll", name)
     }
 }
 
@@ -280,11 +280,11 @@ mod tests {
     fn test_library_filename() {
         let name = library_filename("fs");
         #[cfg(target_os = "linux")]
-        assert_eq!(name, "librhizome_spore_fs.so");
+        assert_eq!(name, "libmoonlet_fs.so");
         #[cfg(target_os = "macos")]
-        assert_eq!(name, "librhizome_spore_fs.dylib");
+        assert_eq!(name, "libmoonlet_fs.dylib");
         #[cfg(target_os = "windows")]
-        assert_eq!(name, "rhizome_spore_fs.dll");
+        assert_eq!(name, "moonlet_fs.dll");
     }
 
     #[test]
