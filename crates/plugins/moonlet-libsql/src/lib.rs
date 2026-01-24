@@ -1,4 +1,4 @@
-//! LibSQL/SQLite plugin for spore with vector support.
+//! LibSQL/SQLite plugin for moonlet with vector support.
 //!
 //! Provides capability-based database access with native vector operations.
 //!
@@ -27,10 +27,10 @@ use std::sync::{Arc, Mutex};
 const ABI_VERSION: u32 = 1;
 
 /// Metatable name for Connection userdata.
-const CONN_METATABLE: &[u8] = b"spore.libsql.Connection\0";
+const CONN_METATABLE: &[u8] = b"moonlet.libsql.Connection\0";
 
 /// Metatable name for LibsqlCapability userdata.
-const CAP_METATABLE: &[u8] = b"spore.libsql.Capability\0";
+const CAP_METATABLE: &[u8] = b"moonlet.libsql.Capability\0";
 
 /// Plugin info for version checking.
 #[repr(C)]

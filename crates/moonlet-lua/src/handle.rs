@@ -1,6 +1,6 @@
 #![allow(non_snake_case)] // Lua C API convention: L for lua_State
 
-//! Async Handle infrastructure for spore plugins.
+//! Async Handle infrastructure for moonlet plugins.
 //!
 //! Provides a Handle userdata type for managing async operations (subprocess output,
 //! streaming LLM responses, etc.) with a poll-based API.
@@ -25,9 +25,9 @@
 //!
 //! ## Poll API (Lua)
 //! ```lua
-//! spore.any_running({h1, h2})           -- true if any still running
-//! spore.poll({h1, h2}, {timeout_ms=100}) -- handles with data ready
-//! spore.wait_all({h1, h2})              -- wait for all, return results
+//! moonlet.any_running({h1, h2})           -- true if any still running
+//! moonlet.poll({h1, h2}, {timeout_ms=100}) -- handles with data ready
+//! moonlet.wait_all({h1, h2})              -- wait for all, return results
 //! ```
 
 use mlua::ffi::{self, lua_State};
@@ -38,7 +38,7 @@ use std::thread::JoinHandle;
 use std::time::Duration;
 
 /// Metatable name for Handle userdata.
-pub const HANDLE_METATABLE: &[u8] = b"spore.Handle\0";
+pub const HANDLE_METATABLE: &[u8] = b"moonlet.Handle\0";
 
 /// Stream identifier for multi-stream handles.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -423,37 +423,37 @@ unsafe extern "C-unwind" fn handle_tostring(L: *mut lua_State) -> c_int {
 }
 
 // ============================================================================
-// spore.poll, spore.any_running, spore.wait_all
+// moonlet.poll, moonlet.any_running, moonlet.wait_all
 // ============================================================================
 
-/// Register spore.poll, spore.any_running, spore.wait_all functions.
+/// Register moonlet.poll, moonlet.any_running, moonlet.wait_all functions.
 ///
 /// # Safety
-/// Must be called with a valid lua_State pointer after the spore table exists.
+/// Must be called with a valid lua_State pointer after the moonlet table exists.
 pub unsafe fn register_poll_functions(L: *mut lua_State) {
     unsafe {
-        // Get spore table
-        ffi::lua_getglobal(L, c"spore".as_ptr());
+        // Get moonlet table
+        ffi::lua_getglobal(L, c"moonlet".as_ptr());
         if ffi::lua_type(L, -1) != ffi::LUA_TTABLE {
             ffi::lua_pop(L, 1);
             return;
         }
 
-        ffi::lua_pushcclosure(L, spore_any_running, 0);
+        ffi::lua_pushcclosure(L, moonlet_any_running, 0);
         ffi::lua_setfield(L, -2, c"any_running".as_ptr());
 
-        ffi::lua_pushcclosure(L, spore_poll, 0);
+        ffi::lua_pushcclosure(L, moonlet_poll, 0);
         ffi::lua_setfield(L, -2, c"poll".as_ptr());
 
-        ffi::lua_pushcclosure(L, spore_wait_all, 0);
+        ffi::lua_pushcclosure(L, moonlet_wait_all, 0);
         ffi::lua_setfield(L, -2, c"wait_all".as_ptr());
 
         ffi::lua_pop(L, 1);
     }
 }
 
-/// spore.any_running(handles) -> bool
-unsafe extern "C-unwind" fn spore_any_running(L: *mut lua_State) -> c_int {
+/// moonlet.any_running(handles) -> bool
+unsafe extern "C-unwind" fn moonlet_any_running(L: *mut lua_State) -> c_int {
     unsafe {
         if ffi::lua_type(L, 1) != ffi::LUA_TTABLE {
             ffi::lua_pushboolean(L, 0);
@@ -478,8 +478,8 @@ unsafe extern "C-unwind" fn spore_any_running(L: *mut lua_State) -> c_int {
     }
 }
 
-/// spore.poll(handles, opts?) -> array of handles with data ready
-unsafe extern "C-unwind" fn spore_poll(L: *mut lua_State) -> c_int {
+/// moonlet.poll(handles, opts?) -> array of handles with data ready
+unsafe extern "C-unwind" fn moonlet_poll(L: *mut lua_State) -> c_int {
     unsafe {
         if ffi::lua_type(L, 1) != ffi::LUA_TTABLE {
             ffi::lua_createtable(L, 0, 0);
@@ -536,8 +536,8 @@ unsafe extern "C-unwind" fn spore_poll(L: *mut lua_State) -> c_int {
     }
 }
 
-/// spore.wait_all(handles) -> array of results
-unsafe extern "C-unwind" fn spore_wait_all(L: *mut lua_State) -> c_int {
+/// moonlet.wait_all(handles) -> array of results
+unsafe extern "C-unwind" fn moonlet_wait_all(L: *mut lua_State) -> c_int {
     unsafe {
         if ffi::lua_type(L, 1) != ffi::LUA_TTABLE {
             ffi::lua_createtable(L, 0, 0);

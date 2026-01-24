@@ -17,7 +17,7 @@ pub struct RequireConfig {
     /// Allow require() for Lua builtins (string, table, math, etc.)
     /// These always take precedence and cannot be overridden.
     pub builtins: bool,
-    /// Allow require() for loaded spore plugins (e.g., require("moonlet.sessions"))
+    /// Allow require() for loaded moonlet plugins (e.g., require("moonlet.sessions"))
     pub plugins: bool,
     /// Allow require() for project Lua modules (relative to project root)
     pub project: bool,
@@ -31,7 +31,7 @@ pub trait Integration {
     fn register(&self, lua: &Lua) -> Result<()>;
 }
 
-/// The spore Lua runtime.
+/// The moonlet Lua runtime.
 pub struct Runtime {
     lua: Lua,
     plugins: PluginLoader,
@@ -153,8 +153,8 @@ impl Runtime {
         env.set("caps", caps)?;
 
         // Also inject moonlet table if it exists
-        if let Ok(spore) = globals.get::<Table>("moonlet") {
-            env.set("spore", spore)?;
+        if let Ok(moonlet) = globals.get::<Table>("moonlet") {
+            env.set("moonlet", moonlet)?;
         }
 
         // Create and inject restricted require function
@@ -246,7 +246,7 @@ impl Runtime {
                 }
             }
 
-            // Check for spore.* plugins
+            // Check for moonlet.* plugins
             if name.starts_with("moonlet.") {
                 if !allow_plugins {
                     return Err(mlua::Error::external(format!(
@@ -327,12 +327,12 @@ impl Default for Runtime {
 
 /// Register moonlet-core bindings (LLM, memory) into Lua.
 fn register_core(lua: &Lua) -> Result<()> {
-    let spore = lua.create_table()?;
+    let moonlet = lua.create_table()?;
 
     // TODO: Register LlmClient bindings
     // TODO: Register MemoryStore bindings
 
-    lua.globals().set("spore", spore)?;
+    lua.globals().set("moonlet", moonlet)?;
 
     // Register Handle metatable and poll functions using raw Lua C API
     // Safety: exec_raw provides safe access to the raw lua_State
@@ -353,13 +353,13 @@ mod tests {
     #[test]
     fn test_runtime_new() {
         let runtime = Runtime::new().expect("should create runtime");
-        // Verify spore global exists
-        let spore: Table = runtime
+        // Verify moonlet global exists
+        let moonlet: Table = runtime
             .lua()
             .globals()
             .get("moonlet")
-            .expect("spore should exist");
-        assert!(spore.contains_key("poll").unwrap());
+            .expect("moonlet should exist");
+        assert!(moonlet.contains_key("poll").unwrap());
     }
 
     #[test]

@@ -1,4 +1,4 @@
-//! Package ecosystem plugin for spore.
+//! Package ecosystem plugin for moonlet.
 //!
 //! Provides capability-based access to package ecosystem queries and package index lookups.
 //!
@@ -34,7 +34,7 @@ use std::path::PathBuf;
 const ABI_VERSION: u32 = 1;
 
 /// Metatable name for PackagesCapability userdata.
-const PACKAGES_CAP_METATABLE: &[u8] = b"spore.packages.Capability\0";
+const PACKAGES_CAP_METATABLE: &[u8] = b"moonlet.packages.Capability\0";
 
 /// Plugin info for version checking.
 #[repr(C)]

@@ -56,7 +56,7 @@ struct SandboxConfig {
     /// These always take precedence and cannot be overridden.
     #[serde(default = "default_true")]
     require_builtins: bool,
-    /// Allow require() for loaded spore plugins (e.g., require("moonlet.sessions"))
+    /// Allow require() for loaded moonlet plugins (e.g., require("moonlet.sessions"))
     #[serde(default = "default_true")]
     require_plugins: bool,
     /// Allow require() for project Lua modules (relative to project root)
@@ -230,7 +230,7 @@ fn run(project_path: &Path, entry_override: Option<&Path>, args: &[String]) -> R
     // Load config
     let config_path = project_path.join(".moonlet/config.toml");
     if !config_path.exists() {
-        return Err("No .moonlet/config.toml found. Run 'spore init' first.".to_string());
+        return Err("No .moonlet/config.toml found. Run 'moonlet init' first.".to_string());
     }
 
     let content = std::fs::read_to_string(&config_path)
@@ -304,12 +304,12 @@ fn run(project_path: &Path, entry_override: Option<&Path>, args: &[String]) -> R
 
     // Set project root and args in Lua
     let lua = runtime.lua();
-    let spore_table = lua
+    let moonlet_table = lua
         .globals()
         .get::<mlua::Table>("moonlet")
         .map_err(|e| format!("Failed to get moonlet table: {}", e))?;
 
-    spore_table
+    moonlet_table
         .set("root", project_path.to_string_lossy().to_string())
         .map_err(|e| format!("Failed to set project root: {}", e))?;
 
@@ -322,7 +322,7 @@ fn run(project_path: &Path, entry_override: Option<&Path>, args: &[String]) -> R
             .set(i + 1, arg.as_str())
             .map_err(|e| format!("Failed to set arg: {}", e))?;
     }
-    spore_table
+    moonlet_table
         .set("args", args_table)
         .map_err(|e| format!("Failed to set args: {}", e))?;
 
@@ -670,14 +670,14 @@ fn expand_path(path: &str, project_path: &Path) -> String {
 }
 
 fn init_project(path: &Path) -> Result<(), String> {
-    let spore_dir = path.join(".spore");
+    let moonlet_dir = path.join(".moonlet");
 
-    if spore_dir.exists() {
-        return Err("Project already initialized (.spore directory exists)".to_string());
+    if moonlet_dir.exists() {
+        return Err("Project already initialized (.moonlet directory exists)".to_string());
     }
 
-    std::fs::create_dir_all(&spore_dir)
-        .map_err(|e| format!("Failed to create .spore directory: {}", e))?;
+    std::fs::create_dir_all(&moonlet_dir)
+        .map_err(|e| format!("Failed to create .moonlet directory: {}", e))?;
 
     let config_content = r#"# moonlet configuration
 
@@ -734,7 +734,7 @@ require_project = true    # Allow require("mymodule") from project directory
 # full = { path = "${PROJECT_ROOT}/data", allow_memory = true }
 "#;
 
-    std::fs::write(spore_dir.join("config.toml"), config_content)
+    std::fs::write(moonlet_dir.join("config.toml"), config_content)
         .map_err(|e| format!("Failed to write config: {}", e))?;
 
     println!("Initialized moonlet project in {}", path.display());
