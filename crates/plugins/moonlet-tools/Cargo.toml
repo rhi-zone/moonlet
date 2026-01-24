@@ -1,0 +1,16 @@
+[package]
+name = "moonlet-tools"
+description = "Development tools plugin for moonlet - linters, formatters, type checkers, test runners"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+mlua = { version = "0.10", features = ["luajit", "vendored"], default-features = false }
+serde_json = "1"
+rhizome-moss-tools = { git = "https://github.com/rhizome-lab/moss" }
+moonlet-lua = { path = "../../moonlet-lua" }

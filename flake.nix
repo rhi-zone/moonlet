@@ -1,5 +1,5 @@
 {
-  description = "spore - Agentic AI framework with Lua scripting";
+  description = "moonlet - Agentic AI framework with Lua scripting";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -26,24 +26,24 @@
 
         # Helper function to build a plugin
         mkPlugin = { name, extraBuildInputs ? [] }: pkgs.rustPlatform.buildRustPackage {
-          pname = "spore-${name}";
+          pname = "moonlet-${name}";
           version = "0.1.0";
           src = ./.;
           cargoLock = cargoLockConfig;
           nativeBuildInputs = commonNativeBuildInputs;
           buildInputs = commonBuildInputs ++ extraBuildInputs;
-          cargoBuildFlags = [ "--package" "rhizome-spore-${name}" ];
+          cargoBuildFlags = [ "--package" "rhi-moonlet-${name}" ];
           # Only install the shared library
           installPhase = ''
             runHook preInstall
-            mkdir -p $out/lib/spore/plugins
+            mkdir -p $out/lib/moonlet/plugins
             # Install plugin shared library
             # rustPlatform uses --target, so look in target/<triple>/release
-            libname="librhizome_spore_${builtins.replaceStrings ["-"] ["_"] name}"
+            libname="librhi_moonlet_${builtins.replaceStrings ["-"] ["_"] name}"
             for targetDir in target/*/release target/release; do
               for ext in so dylib dll; do
                 if [ -f "$targetDir/$libname.$ext" ]; then
-                  cp "$targetDir/$libname.$ext" "$out/lib/spore/plugins/"
+                  cp "$targetDir/$libname.$ext" "$out/lib/moonlet/plugins/"
                 fi
               done
             done
@@ -53,42 +53,42 @@
 
         # Define all plugins
         plugins = {
-          spore-embed = mkPlugin { name = "embed"; };
-          spore-fs = mkPlugin { name = "fs"; };
-          spore-libsql = mkPlugin { name = "libsql"; };
-          spore-llm = mkPlugin { name = "llm"; };
-          spore-moss = mkPlugin { name = "moss"; };
-          spore-packages = mkPlugin { name = "packages"; };
-          spore-sessions = mkPlugin { name = "sessions"; };
-          spore-tools = mkPlugin { name = "tools"; };
+          moonlet-embed = mkPlugin { name = "embed"; };
+          moonlet-fs = mkPlugin { name = "fs"; };
+          moonlet-libsql = mkPlugin { name = "libsql"; };
+          moonlet-llm = mkPlugin { name = "llm"; };
+          moonlet-moss = mkPlugin { name = "moss"; };
+          moonlet-packages = mkPlugin { name = "packages"; };
+          moonlet-sessions = mkPlugin { name = "sessions"; };
+          moonlet-tools = mkPlugin { name = "tools"; };
         };
 
-        # Core spore package (binary only)
-        spore = pkgs.rustPlatform.buildRustPackage {
-          pname = "spore";
+        # Core moonlet package (binary only)
+        moonlet = pkgs.rustPlatform.buildRustPackage {
+          pname = "moonlet";
           version = "0.1.0";
           src = ./.;
           cargoLock = cargoLockConfig;
           nativeBuildInputs = commonNativeBuildInputs;
           buildInputs = commonBuildInputs;
-          cargoBuildFlags = [ "--package" "rhizome-spore" ];
+          cargoBuildFlags = [ "--package" "rhi-moonlet" ];
         };
 
         # Combined package with core + all plugins
-        spore-full = pkgs.symlinkJoin {
-          name = "spore-full-0.1.0";
-          paths = [ spore ] ++ (builtins.attrValues plugins);
+        moonlet-full = pkgs.symlinkJoin {
+          name = "moonlet-full-0.1.0";
+          paths = [ moonlet ] ++ (builtins.attrValues plugins);
           postBuild = ''
             # Ensure plugins directory exists in the combined output
-            mkdir -p $out/lib/spore/plugins
+            mkdir -p $out/lib/moonlet/plugins
           '';
         };
 
       in
       {
         packages = plugins // {
-          default = spore;
-          inherit spore spore-full;
+          default = moonlet;
+          inherit moonlet moonlet-full;
         };
 
         devShells.default = pkgs.mkShell rec {

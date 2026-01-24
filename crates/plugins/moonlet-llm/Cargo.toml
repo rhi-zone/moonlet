@@ -1,0 +1,18 @@
+[package]
+name = "moonlet-llm"
+description = "LLM client plugin for moonlet - multi-provider AI completions"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+mlua = { version = "0.10", features = ["luajit", "vendored"], default-features = false }
+serde_json = "1"
+tokio.workspace = true
+reqwest.workspace = true
+rig-core.workspace = true
+moonlet-lua = { path = "../../moonlet-lua" }

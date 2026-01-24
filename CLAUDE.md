@@ -1,36 +1,36 @@
 # CLAUDE.md
 
-Behavioral rules for Claude Code in the spore repository.
+Behavioral rules for Claude Code in the moonlet repository.
 
 ## Project Overview
 
-spore is an agentic AI framework spun out from moss. It provides:
+moonlet is an agentic AI framework spun out from moss. It provides:
 - Multi-provider LLM client (via rig-core)
 - SQLite-backed memory store
 - Lua runtime with plugin support
 - Agent scripts for autonomous task execution
 
 **Key distinction:**
-- **spore** = agency/execution (LLM calls, memory, running agents)
+- **moonlet** = agency/execution (LLM calls, memory, running agents)
 - **moss** = intelligence (code analysis, session parsing, understanding)
 
-The projects are intentionally not hard-linked. Moss extends spore via dynamically loaded C ABI plugins.
+The projects are intentionally not hard-linked. Moss extends moonlet via dynamically loaded C ABI plugins.
 
 ## Architecture
 
 ```
 crates/
-├── spore-core/           # Memory store
-├── spore-lua/            # Lua runtime, plugin loader
+├── moonlet-core/         # Memory store
+├── moonlet-lua/          # Lua runtime, plugin loader
 └── plugins/              # Dynamic C ABI plugins (cdylib)
-    ├── spore-fs/         # Filesystem with capability-based security
-    ├── spore-llm/        # Multi-provider LLM client
-    ├── spore-embed/      # Multi-provider embedding generation
-    ├── spore-libsql/     # LibSQL/SQLite with vector support
-    ├── spore-moss/       # Code intelligence (view, search, analyze, edit)
-    ├── spore-sessions/   # AI session parsing
-    ├── spore-tools/      # Dev tools (linters, formatters, test runners)
-    └── spore-packages/   # Package ecosystem queries
+    ├── moonlet-fs/       # Filesystem with capability-based security
+    ├── moonlet-llm/      # Multi-provider LLM client
+    ├── moonlet-embed/    # Multi-provider embedding generation
+    ├── moonlet-libsql/   # LibSQL/SQLite with vector support
+    ├── moonlet-moss/     # Code intelligence (view, search, analyze, edit)
+    ├── moonlet-sessions/ # AI session parsing
+    ├── moonlet-tools/    # Dev tools (linters, formatters, test runners)
+    └── moonlet-packages/ # Package ecosystem queries
 
 scripts/
 ├── agent.lua             # Main agent state machine
@@ -46,8 +46,8 @@ scripts/
 ## Plugin System
 
 Plugins are dynamically loaded shared libraries (`.so`/`.dylib`/`.dll`) that export:
-- `spore_plugin_info()` - Version and ABI info
-- `luaopen_spore_{name}()` - Lua module entry point
+- `moonlet_plugin_info()` - Version and ABI info
+- `luaopen_moonlet_{name}()` - Lua module entry point
 
 Plugins use capability-based security. Scripts receive capabilities via `caps` table:
 ```lua
@@ -58,23 +58,23 @@ local content = file:read("*a")
 
 ## Key Types
 
-### spore-core
+### moonlet-core
 - `MemoryStore` - SQLite-backed key-value store with metadata
 - `MemoryItem` - Stored memory with content, context, weight, metadata
 
-### spore-lua
+### moonlet-lua
 - `Runtime` - Lua execution environment
 - `PluginLoader` - Dynamic plugin discovery and loading
 
 ### Plugins
-- **spore-llm**: `llm.capability({providers, models?})` returns capability with `:providers()`, `:provider_info(name)`, `:complete(provider, model?, system?, prompt)`, `:chat(provider, model?, system?, message, history?)`, `:start_chat(...)` (async)
-- **spore-embed**: `embed.capability({providers, models?})` returns capability with `:providers()`, `:provider_info(name)`, `:generate(provider, model?, texts)`, `:start_generate(...)` (async)
-- **spore-libsql**: `libsql.capability({path?, allow_memory?})` returns capability with `:open(path)`, `:open_memory()`, `:vector32(array)`, `:vector64(array)`; Connection with `:execute()`, `:query()`, `:close()`
-- **spore-moss**: `moss.capability({root, mode})` returns capability with `:view()`, `:search()`, `:complexity()`, `:security()`, `:docs()`, `:files()`, `:duplicates()`, `:hotspots()`, `:stale_docs()`, `:check_refs()`, `:ast()`, `:query()`, `:trace()`, `:callers()`, `:callees()`, `:find()`, `:replace()`, etc.
-- **spore-tools**: `tools.capability({root})` returns capability with `:run()`, `:fix()`, `:test_run()`, etc.
-- **spore-packages**: `packages.capability({root})` returns capability with `:query()`, `:dependencies()`, `:audit()`
-- **spore-sessions**: `sessions.capability({root})` returns capability with `:parse()`, `:parse_with_format()`, `:list()`, `:detect()`, `:formats()`
-- **spore-fs**: `fs.capability({path, mode})` returns capability with `:open()`, `:read()`, `:write()`, etc.
+- **moonlet-llm**: `llm.capability({providers, models?})` returns capability with `:providers()`, `:provider_info(name)`, `:complete(provider, model?, system?, prompt)`, `:chat(provider, model?, system?, message, history?)`, `:start_chat(...)` (async)
+- **moonlet-embed**: `embed.capability({providers, models?})` returns capability with `:providers()`, `:provider_info(name)`, `:generate(provider, model?, texts)`, `:start_generate(...)` (async)
+- **moonlet-libsql**: `libsql.capability({path?, allow_memory?})` returns capability with `:open(path)`, `:open_memory()`, `:vector32(array)`, `:vector64(array)`; Connection with `:execute()`, `:query()`, `:close()`
+- **moonlet-moss**: `moss.capability({root, mode})` returns capability with `:view()`, `:search()`, `:complexity()`, `:security()`, `:docs()`, `:files()`, `:duplicates()`, `:hotspots()`, `:stale_docs()`, `:check_refs()`, `:ast()`, `:query()`, `:trace()`, `:callers()`, `:callees()`, `:find()`, `:replace()`, etc.
+- **moonlet-tools**: `tools.capability({root})` returns capability with `:run()`, `:fix()`, `:test_run()`, etc.
+- **moonlet-packages**: `packages.capability({root})` returns capability with `:query()`, `:dependencies()`, `:audit()`
+- **moonlet-sessions**: `sessions.capability({root})` returns capability with `:parse()`, `:parse_with_format()`, `:list()`, `:detect()`, `:formats()`
+- **moonlet-fs**: `fs.capability({path, mode})` returns capability with `:open()`, `:read()`, `:write()`, etc.
 
 ## Supported LLM Providers
 
@@ -94,7 +94,7 @@ cargo clippy       # Lint
 
 ## Environment Variables
 
-- `SPORE_INSECURE_SSL` - Bypass SSL verification (for local proxies)
+- `MOONLET_INSECURE_SSL` - Bypass SSL verification (for local proxies)
 - `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, etc. - Provider API keys
 
 ## Behavioral Patterns
@@ -109,10 +109,10 @@ From ecosystem-wide session analysis:
 
 ## Conventions
 
-- Crate names: `rhizome-spore-{name}`
-- Memory stored in `.spore/` directory
+- Crate names: `moonlet-{name}`
+- Memory stored in `.moonlet/` directory
 - Plugins live in `crates/plugins/` (cdylib crates)
-- Plugins export `luaopen_spore_{name}()` C function
+- Plugins export `luaopen_moonlet_{name}()` C function
 
 ## Negative Constraints
 

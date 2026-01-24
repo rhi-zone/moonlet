@@ -1,5 +1,5 @@
 {
-  "name": "spore-docs",
+  "name": "moonlet-docs",
   "private": true,
   "scripts": {
     "dev": "vitepress dev",

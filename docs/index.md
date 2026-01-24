@@ -2,7 +2,7 @@
 layout: home
 
 hero:
-  name: spore
+  name: moonlet
   text: Agentic AI Framework
   tagline: Multi-provider LLM client, memory store, and Lua runtime for AI agents
   actions:
@@ -11,7 +11,7 @@ hero:
       link: /introduction
     - theme: alt
       text: View on GitHub
-      link: https://github.com/rhizome-lab/spore
+      link: https://github.com/rhi-zone/moonlet
 
 features:
   - title: Multi-Provider LLM

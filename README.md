@@ -1,26 +1,26 @@
-# spore
+# moonlet
 
-Lua runtime with plugin system for the Rhizome ecosystem.
+Lua runtime with plugin system for the rhi ecosystem.
 
 ## Crates
 
 | Crate | Description |
 |-------|-------------|
-| `rhizome-spore-core` | Core runtime infrastructure |
-| `rhizome-spore-lua` | Lua runtime with Integration trait |
+| `moonlet-core` | Core runtime infrastructure |
+| `moonlet-lua` | Lua runtime with Integration trait |
 
 ### Integrations
 
 | Crate | Description |
 |-------|-------------|
-| `rhizome-spore-moss` | Adds [Moss](https://github.com/rhizome-lab/moss) code analysis to Lua |
-| `rhizome-spore-lotus` | Adds [Lotus](https://github.com/rhizome-lab/lotus) world state to Lua |
+| `moonlet-moss` | Adds [Moss](https://github.com/rhizome-lab/moss) code analysis to Lua |
+| `moonlet-lotus` | Adds [Lotus](https://github.com/rhizome-lab/lotus) world state to Lua |
 
 ## Usage
 
 ```rust
-use rhizome_spore_lua::Runtime;
-use rhizome_spore_moss::MossIntegration;
+use moonlet_lua::Runtime;
+use moonlet_moss::MossIntegration;
 
 let runtime = Runtime::new()?;
 runtime.register(&MossIntegration::new("."))?;
