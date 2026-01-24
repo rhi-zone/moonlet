@@ -8,8 +8,8 @@
 #![allow(non_snake_case)] // Lua C API convention: L for lua_State
 
 use mlua::ffi::{self, lua_State};
-use rhizome_pith_filesystem::{DirEntry, Directory, Error as FsError, FileType, Metadata};
-use rhizome_pith_io::{InputStream, OutputStream, Seek, SeekFrom, StreamError};
+use portals_filesystem::{DirEntry, Directory, Error as FsError, FileType, Metadata};
+use portals_io::{InputStream, OutputStream, Seek, SeekFrom, StreamError};
 use std::ffi::{CStr, CString, c_char, c_int};
 use std::fs::{self, File, OpenOptions};
 use std::future::Future;
