@@ -18,9 +18,9 @@ docs/.vitepress/dist/
 # Normalize
 .normalize/*
 !.normalize/config.toml
+!.normalize/complexity-allow
 !.normalize/duplicate-functions-allow
 !.normalize/duplicate-types-allow
 !.normalize/hotspots-allow
 !.normalize/large-files-allow
 !.normalize/memory/
-.normalize/
