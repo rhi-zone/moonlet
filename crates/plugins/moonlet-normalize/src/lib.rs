@@ -3,7 +3,7 @@
 //! Provides capability-based access to code analysis, search, and editing.
 //!
 //! ## Capability Constructor
-//! - `moss.capability({ root = "..." })` - Create moss capability for codebase
+//! - `normalize.capability({ root = "..." })` - Create moss capability for codebase
 //!
 //! ## Capability Methods - View & Search
 //! - `cap:view(path)` - View file/symbol structure
@@ -23,8 +23,8 @@
 //! - `cap:ast(path, opts?)` - AST inspection (sexp or tree format)
 //! - `cap:query(pattern, opts?)` - Tree-sitter/ast-grep queries
 //! - `cap:trace(symbol, opts?)` - Value provenance tracing
-//! - `cap:callers(symbol)` - Find callers (requires moss index)
-//! - `cap:callees(symbol)` - Find callees (requires moss index)
+//! - `cap:callers(symbol)` - Find callers (requires normalize index)
+//! - `cap:callees(symbol)` - Find callees (requires normalize index)
 //!
 //! ## Capability Methods - Editing
 //! - `cap:find(path, name, opts?)` - Find a symbol by name
@@ -48,7 +48,7 @@ use std::path::{Path, PathBuf};
 const ABI_VERSION: u32 = 1;
 
 /// Metatable name for MossCapability userdata.
-const MOSS_CAP_METATABLE: &[u8] = b"spore.moss.Capability\0";
+const NORMALIZE_CAP_METATABLE: &[u8] = b"spore.normalize.Capability\0";
 
 /// Plugin info for version checking.
 #[repr(C)]
@@ -130,7 +130,7 @@ fn normalize_path(path: &Path) -> PathBuf {
 #[unsafe(no_mangle)]
 pub extern "C" fn moonlet_plugin_info() -> PluginInfo {
     PluginInfo {
-        name: c"moss".as_ptr(),
+        name: c"normalize".as_ptr(),
         version: c"0.1.0".as_ptr(),
         abi_version: ABI_VERSION,
     }
@@ -141,7 +141,7 @@ pub extern "C" fn moonlet_plugin_info() -> PluginInfo {
 /// # Safety
 /// Must be called from Lua with a valid lua_State pointer.
 #[unsafe(no_mangle)]
-pub unsafe extern "C-unwind" fn luaopen_moonlet_moss(L: *mut lua_State) -> c_int {
+pub unsafe extern "C-unwind" fn luaopen_moonlet_normalize(L: *mut lua_State) -> c_int {
     unsafe {
         // Register capability metatable
         register_capability_metatable(L);
@@ -150,7 +150,7 @@ pub unsafe extern "C-unwind" fn luaopen_moonlet_moss(L: *mut lua_State) -> c_int
         ffi::lua_createtable(L, 0, 1);
 
         // Capability constructor
-        ffi::lua_pushcclosure(L, moss_capability, 0);
+        ffi::lua_pushcclosure(L, normalize_capability, 0);
         ffi::lua_setfield(L, -2, c"capability".as_ptr());
 
         1
@@ -163,7 +163,7 @@ pub unsafe extern "C-unwind" fn luaopen_moonlet_moss(L: *mut lua_State) -> c_int
 
 unsafe fn register_capability_metatable(L: *mut lua_State) {
     unsafe {
-        if ffi::luaL_newmetatable(L, MOSS_CAP_METATABLE.as_ptr() as *const c_char) != 0 {
+        if ffi::luaL_newmetatable(L, NORMALIZE_CAP_METATABLE.as_ptr() as *const c_char) != 0 {
             ffi::lua_createtable(L, 0, 16);
 
             // View & Search
@@ -266,8 +266,8 @@ unsafe fn register_capability_metatable(L: *mut lua_State) {
 // Capability constructor
 // ============================================================================
 
-/// moss.capability({ root = "...", mode = "rw" }) -> MossCapability
-unsafe extern "C-unwind" fn moss_capability(L: *mut lua_State) -> c_int {
+/// normalize.capability({ root = "...", mode = "rw" }) -> MossCapability
+unsafe extern "C-unwind" fn normalize_capability(L: *mut lua_State) -> c_int {
     unsafe {
         if ffi::lua_type(L, 1) != ffi::LUA_TTABLE {
             return push_error(L, "capability expects a table argument");
@@ -303,7 +303,7 @@ unsafe fn create_capability_userdata(L: *mut lua_State, cap: MossCapability) -> 
         let ud_ptr = ud as *mut *mut MossCapability;
         *ud_ptr = Box::into_raw(boxed);
 
-        ffi::luaL_newmetatable(L, MOSS_CAP_METATABLE.as_ptr() as *const c_char);
+        ffi::luaL_newmetatable(L, NORMALIZE_CAP_METATABLE.as_ptr() as *const c_char);
         ffi::lua_setmetatable(L, -2);
 
         1
@@ -312,7 +312,7 @@ unsafe fn create_capability_userdata(L: *mut lua_State, cap: MossCapability) -> 
 
 unsafe fn get_capability(L: *mut lua_State, idx: c_int) -> Option<&'static MossCapability> {
     unsafe {
-        let ud = ffi::luaL_checkudata(L, idx, MOSS_CAP_METATABLE.as_ptr() as *const c_char);
+        let ud = ffi::luaL_checkudata(L, idx, NORMALIZE_CAP_METATABLE.as_ptr() as *const c_char);
         if ud.is_null() {
             return None;
         }
@@ -957,7 +957,7 @@ unsafe extern "C-unwind" fn cap_hotspots(L: *mut lua_State) -> c_int {
         }
 
         // Run hotspots analysis (this prints to stdout, we just capture exit code)
-        // For proper data capture, we'd need to refactor moss to return structured data
+        // For proper data capture, we'd need to refactor normalize to return structured data
         let exit_code =
             normalize::commands::analyze::hotspots::cmd_hotspots(&cap.root, &[], false);
 
@@ -1188,7 +1188,7 @@ unsafe extern "C-unwind" fn cap_trace(L: *mut lua_State) -> c_int {
     }
 }
 
-/// cap:callers(symbol) -> find callers of a symbol (requires moss index)
+/// cap:callers(symbol) -> find callers of a symbol (requires normalize index)
 unsafe extern "C-unwind" fn cap_callers(L: *mut lua_State) -> c_int {
     unsafe {
         let Some(cap) = get_capability(L, 1) else {
@@ -1217,7 +1217,7 @@ unsafe extern "C-unwind" fn cap_callers(L: *mut lua_State) -> c_int {
     }
 }
 
-/// cap:callees(symbol) -> find callees of a symbol (requires moss index)
+/// cap:callees(symbol) -> find callees of a symbol (requires normalize index)
 unsafe extern "C-unwind" fn cap_callees(L: *mut lua_State) -> c_int {
     unsafe {
         let Some(cap) = get_capability(L, 1) else {

@@ -1,5 +1,5 @@
 [package]
-name = "moonlet-moss"
+name = "moonlet-normalize"
 description = "Code intelligence plugin for moonlet - view, search, analyze, edit"
 version.workspace = true
 edition.workspace = true

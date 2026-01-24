@@ -32,14 +32,14 @@
           cargoLock = cargoLockConfig;
           nativeBuildInputs = commonNativeBuildInputs;
           buildInputs = commonBuildInputs ++ extraBuildInputs;
-          cargoBuildFlags = [ "--package" "rhi-moonlet-${name}" ];
+          cargoBuildFlags = [ "--package" "moonlet-${name}" ];
           # Only install the shared library
           installPhase = ''
             runHook preInstall
             mkdir -p $out/lib/moonlet/plugins
             # Install plugin shared library
             # rustPlatform uses --target, so look in target/<triple>/release
-            libname="librhi_moonlet_${builtins.replaceStrings ["-"] ["_"] name}"
+            libname="libmoonlet_${builtins.replaceStrings ["-"] ["_"] name}"
             for targetDir in target/*/release target/release; do
               for ext in so dylib dll; do
                 if [ -f "$targetDir/$libname.$ext" ]; then
@@ -57,7 +57,7 @@
           moonlet-fs = mkPlugin { name = "fs"; };
           moonlet-libsql = mkPlugin { name = "libsql"; };
           moonlet-llm = mkPlugin { name = "llm"; };
-          moonlet-moss = mkPlugin { name = "moss"; };
+          moonlet-normalize = mkPlugin { name = "normalize"; };
           moonlet-packages = mkPlugin { name = "packages"; };
           moonlet-sessions = mkPlugin { name = "sessions"; };
           moonlet-tools = mkPlugin { name = "tools"; };
@@ -71,7 +71,7 @@
           cargoLock = cargoLockConfig;
           nativeBuildInputs = commonNativeBuildInputs;
           buildInputs = commonBuildInputs;
-          cargoBuildFlags = [ "--package" "rhi-moonlet" ];
+          cargoBuildFlags = [ "--package" "moonlet" ];
         };
 
         # Combined package with core + all plugins
