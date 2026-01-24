@@ -19,7 +19,7 @@
         cargoLockConfig = {
           lockFile = ./Cargo.lock;
           outputHashes = {
-            "normalize-0.1.0" = "sha256-eeX+GZtX4GOckfesqEQ/U4KZ781BK1jJC1RYAKoi+4E=";
+            "normalize-0.1.0" = "sha256-xDO5uDPLpZbdtOyTZnPUZv7247XVjD1e7bc0v3w+3YA=";
             "portals-filesystem-0.1.0" = "sha256-gj8ExV27uJ+e+hXob0+EIU/UOB62YfvxaaI+24wjbuM=";
           };
         };
