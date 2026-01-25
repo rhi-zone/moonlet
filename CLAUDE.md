@@ -114,9 +114,21 @@ From ecosystem-wide session analysis:
 - Plugins live in `crates/plugins/` (cdylib crates)
 - Plugins export `luaopen_moonlet_{name}()` C function
 
+## Design Principles
+
+**Unify, don't multiply.** One interface for multiple cases > separate interfaces. Plugin systems > hardcoded switches.
+
+**Simplicity over cleverness.** HashMap > inventory crate. OnceLock > lazy_static. Functions > traits until you need the trait. Use ecosystem tooling over hand-rolling.
+
+**Explicit over implicit.** Log when skipping. Show what's at stake before refusing.
+
+**Separate niche from shared.** Don't bloat shared config with feature-specific data. Use separate files for specialized data.
+
 ## Negative Constraints
 
 Do not:
+- Announce actions ("I will now...") - just do them
+- Leave work uncommitted
 - Use path dependencies in Cargo.toml - causes clippy to stash changes across repos
 - Use `--no-verify` - fix the issue or fix the hook
 - Assume tools are missing - check if `nix develop` is available for the right environment
