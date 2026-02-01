@@ -21,7 +21,7 @@
 #![allow(non_snake_case)]
 
 use mlua::ffi::{self, lua_State};
-use normalize_packages::{
+use normalize_package_index::{
     AuditResult, Dependency, DependencyTree, Ecosystem, PackageError, PackageInfo, TreeNode,
     Vulnerability, detect_ecosystem, get_ecosystem,
     index::{self, PackageMeta},
