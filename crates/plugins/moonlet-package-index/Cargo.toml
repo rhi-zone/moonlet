@@ -1,6 +1,6 @@
 [package]
-name = "moonlet-packages"
-description = "Package ecosystem plugin for moonlet - ecosystem queries and package index lookups"
+name = "moonlet-package-index"
+description = "Package index plugin for moonlet - registry metadata lookups"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -11,5 +11,4 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 mlua = { version = "0.10", features = ["luajit", "vendored"], default-features = false }
-serde_json = "1"
-normalize-package-index = { version = "0.1.0", features = ["ecosystem", "index"] }
+normalize-package-index = "0.1.0"

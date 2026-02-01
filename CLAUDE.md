@@ -30,7 +30,8 @@ crates/
     ├── moonlet-moss/     # Code intelligence (view, search, analyze, edit)
     ├── moonlet-sessions/ # AI session parsing
     ├── moonlet-tools/    # Dev tools (linters, formatters, test runners)
-    └── moonlet-packages/ # Package ecosystem queries
+    ├── moonlet-ecosystems/ # Package ecosystem queries
+    └── moonlet-package-index/ # Package registry lookups
 
 scripts/
 ├── agent.lua             # Main agent state machine
@@ -72,7 +73,8 @@ local content = file:read("*a")
 - **moonlet-libsql**: `libsql.capability({path?, allow_memory?})` returns capability with `:open(path)`, `:open_memory()`, `:vector32(array)`, `:vector64(array)`; Connection with `:execute()`, `:query()`, `:close()`
 - **moonlet-moss**: `moss.capability({root, mode})` returns capability with `:view()`, `:search()`, `:complexity()`, `:security()`, `:docs()`, `:files()`, `:duplicates()`, `:hotspots()`, `:stale_docs()`, `:check_refs()`, `:ast()`, `:query()`, `:trace()`, `:callers()`, `:callees()`, `:find()`, `:replace()`, etc.
 - **moonlet-tools**: `tools.capability({root})` returns capability with `:run()`, `:fix()`, `:test_run()`, etc.
-- **moonlet-packages**: `packages.capability({root})` returns capability with `:query()`, `:dependencies()`, `:audit()`
+- **moonlet-ecosystems**: `ecosystems.capability({root})` returns capability with `:detect()`, `:query()`, `:dependencies()`, `:tree()`, `:audit()`
+- **moonlet-package-index**: `package_index.list()`, `package_index.fetch(index, package)` for registry lookups
 - **moonlet-sessions**: `sessions.capability({root})` returns capability with `:parse()`, `:parse_with_format()`, `:list()`, `:detect()`, `:formats()`
 - **moonlet-fs**: `fs.capability({path, mode})` returns capability with `:open()`, `:read()`, `:write()`, etc.
 

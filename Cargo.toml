@@ -20,7 +20,8 @@ moonlet-llm = { path = "crates/plugins/moonlet-llm" }
 moonlet-normalize = { path = "crates/plugins/moonlet-normalize" }
 moonlet-sessions = { path = "crates/plugins/moonlet-sessions" }
 moonlet-tools = { path = "crates/plugins/moonlet-tools" }
-moonlet-packages = { path = "crates/plugins/moonlet-packages" }
+moonlet-ecosystems = { path = "crates/plugins/moonlet-ecosystems" }
+moonlet-package-index = { path = "crates/plugins/moonlet-package-index" }
 moonlet-embed = { path = "crates/plugins/moonlet-embed" }
 moonlet-libsql = { path = "crates/plugins/moonlet-libsql" }
 

@@ -121,6 +121,61 @@ dependencies = [
 ]
 
 [[package]]
+name = "arborium-javascript"
+version = "2.12.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dc16c4b8f7d921667d95665add5cb08c5cd52e8fdbeacf8a66a57d3e0e0ce5b9"
+dependencies = [
+ "arborium-sysroot",
+ "cc",
+ "tree-sitter-language",
+]
+
+[[package]]
+name = "arborium-lua"
+version = "2.12.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "971f5d9d495b5c5c3486453eb27d2c3c6195bc16b4340eead8af6b77441d717a"
+dependencies = [
+ "arborium-sysroot",
+ "cc",
+ "tree-sitter-language",
+]
+
+[[package]]
+name = "arborium-python"
+version = "2.12.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "238b5f0302091ed3655985c650a5718ee509519cff267265c6d1c7bbed2dab7b"
+dependencies = [
+ "arborium-sysroot",
+ "cc",
+ "tree-sitter-language",
+]
+
+[[package]]
+name = "arborium-sysroot"
+version = "2.12.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0bb50cd4c0ca81b150c7febeda402defe3dbee3ed36adc547408b35067caf0c0"
+dependencies = [
+ "cc",
+ "dlmalloc",
+]
+
+[[package]]
+name = "arborium-typescript"
+version = "2.12.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "557d8143d10e1ee53549d2769ac82d8432b0b0b701abfa28ced0aa3a2f5db0fd"
+dependencies = [
+ "arborium-javascript",
+ "arborium-sysroot",
+ "cc",
+ "tree-sitter-language",
+]
+
+[[package]]
 name = "as-any"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -753,6 +808,17 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "dlmalloc"
+version = "0.2.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6738d2e996274e499bc7b0d693c858b7720b9cd2543a0643a3087e6cb0a4fa16"
+dependencies = [
+ "cfg-if",
+ "libc",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -2187,6 +2253,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "moonlet-ecosystems"
+version = "0.1.0"
+dependencies = [
+ "mlua",
+ "normalize-ecosystems",
+]
+
+[[package]]
 name = "moonlet-embed"
 version = "0.1.0"
 dependencies = [
@@ -2254,12 +2328,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "moonlet-packages"
+name = "moonlet-package-index"
 version = "0.1.0"
 dependencies = [
  "mlua",
- "normalize-packages",
- "serde_json",
+ "normalize-package-index",
 ]
 
 [[package]]
@@ -2267,7 +2340,7 @@ name = "moonlet-sessions"
 version = "0.1.0"
 dependencies = [
  "mlua",
- "normalize-sessions",
+ "normalize-chat-sessions",
  "serde_json",
 ]
 
@@ -2311,7 +2384,8 @@ dependencies = [
 [[package]]
 name = "normalize"
 version = "0.1.0"
-source = "git+https://github.com/rhi-zone/normalize#d3282f5b27c5a502109d1c6ebbc7fe3d10a96db0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f2b3b106be311ca278a8288680640d8408124b621c19c2ef9cb01ff9989aded4"
 dependencies = [
  "ast-grep-core",
  "axum 0.8.8",
@@ -2331,15 +2405,15 @@ dependencies = [
  "jaq-std",
  "libc",
  "libsql",
+ "normalize-chat-sessions",
  "normalize-cli-parser",
  "normalize-core",
  "normalize-derive",
- "normalize-jsonschema",
+ "normalize-ecosystems",
  "normalize-languages",
  "normalize-openapi",
- "normalize-packages",
- "normalize-rules",
- "normalize-sessions",
+ "normalize-surface-syntax",
+ "normalize-syntax-rules",
  "normalize-tools",
  "normalize-typegen",
  "notify",
@@ -2363,9 +2437,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "normalize-chat-sessions"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8ccd34f91554a1eb72554e2d9b0e80192fddddf2b45f3c2241b00534a008dbde"
+dependencies = [
+ "regex",
+ "schemars 1.2.0",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "normalize-cli-parser"
 version = "0.1.0"
-source = "git+https://github.com/rhi-zone/normalize#d3282f5b27c5a502109d1c6ebbc7fe3d10a96db0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c3fce89f530d879aa453f6574020a5ae855bf070a4f45914e194d86c4872231e"
 dependencies = [
  "regex",
  "serde",
@@ -2375,12 +2462,14 @@ dependencies = [
 [[package]]
 name = "normalize-core"
 version = "0.1.0"
-source = "git+https://github.com/rhi-zone/normalize#d3282f5b27c5a502109d1c6ebbc7fe3d10a96db0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7cbbb543363dc31a6a8390d428a53ee27daa41187538fed26f3bd775d4a6e949"
 
 [[package]]
 name = "normalize-derive"
 version = "0.1.0"
-source = "git+https://github.com/rhi-zone/normalize#d3282f5b27c5a502109d1c6ebbc7fe3d10a96db0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "752a7f7cde0b08201264220d03a8e66da1b050bef50a2232a99c909bb483fd2c"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2388,17 +2477,25 @@ dependencies = [
 ]
 
 [[package]]
-name = "normalize-jsonschema"
+name = "normalize-ecosystems"
 version = "0.1.0"
-source = "git+https://github.com/rhi-zone/normalize#d3282f5b27c5a502109d1c6ebbc7fe3d10a96db0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e879928a712c6ad6ea56fac1dc3fabbcd7b92db720a000fe690396718ba44f15"
 dependencies = [
+ "serde",
  "serde_json",
+ "serde_json_lenient",
+ "serde_yaml",
+ "toml",
+ "ureq",
+ "urlencoding",
 ]
 
 [[package]]
 name = "normalize-languages"
 version = "0.1.0"
-source = "git+https://github.com/rhi-zone/normalize#d3282f5b27c5a502109d1c6ebbc7fe3d10a96db0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aeb179d390efbc34b9c1ac1e878baf7c5a62b0c83d1dbc1969724e3203b3521a"
 dependencies = [
  "ast-grep-core",
  "dirs 5.0.1",
@@ -2412,15 +2509,17 @@ dependencies = [
 [[package]]
 name = "normalize-openapi"
 version = "0.1.0"
-source = "git+https://github.com/rhi-zone/normalize#d3282f5b27c5a502109d1c6ebbc7fe3d10a96db0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c16843a908f187c35b5aa9820f12382942173e920376e95967b51d6539849fd8"
 dependencies = [
  "serde_json",
 ]
 
 [[package]]
-name = "normalize-packages"
+name = "normalize-package-index"
 version = "0.1.0"
-source = "git+https://github.com/rhi-zone/normalize#d3282f5b27c5a502109d1c6ebbc7fe3d10a96db0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d15d5cca411ebee64f8a48fea0cb8ed8a66eefadd2b866b7b8b5ec2f4264c273"
 dependencies = [
  "flate2",
  "quick-xml",
@@ -2428,9 +2527,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_json_lenient",
- "serde_yaml",
  "tar",
- "toml",
  "ureq",
  "urlencoding",
  "xz2",
@@ -2438,9 +2535,25 @@ dependencies = [
 ]
 
 [[package]]
-name = "normalize-rules"
+name = "normalize-surface-syntax"
 version = "0.1.0"
-source = "git+https://github.com/rhi-zone/normalize#d3282f5b27c5a502109d1c6ebbc7fe3d10a96db0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7631328bf792329992bd52d49085ef9d1c87ae53201b66f646b9c34667649a22"
+dependencies = [
+ "arborium-lua",
+ "arborium-python",
+ "arborium-typescript",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tree-sitter",
+]
+
+[[package]]
+name = "normalize-syntax-rules"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1756c802fdfd2370861fa5bb90965f46c12604c80813495d4acf692215dfd974"
 dependencies = [
  "dirs 5.0.1",
  "glob",
@@ -2457,19 +2570,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "normalize-sessions"
-version = "0.1.0"
-source = "git+https://github.com/rhi-zone/normalize#d3282f5b27c5a502109d1c6ebbc7fe3d10a96db0"
-dependencies = [
- "regex",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "normalize-tools"
 version = "0.1.0"
-source = "git+https://github.com/rhi-zone/normalize#d3282f5b27c5a502109d1c6ebbc7fe3d10a96db0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ef07bbbf6919530fc810351bb8497b48c76e2797466783982cd1d35f848f958a"
 dependencies = [
  "rayon",
  "serde",
@@ -2482,11 +2586,14 @@ dependencies = [
 [[package]]
 name = "normalize-typegen"
 version = "0.1.0"
-source = "git+https://github.com/rhi-zone/normalize#d3282f5b27c5a502109d1c6ebbc7fe3d10a96db0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "785bc7c712ae832b9acc07d11ba3167f0c78cb09b3936139a2a32762eb590a13"
 dependencies = [
+ "arborium-typescript",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
+ "tree-sitter",
 ]
 
 [[package]]

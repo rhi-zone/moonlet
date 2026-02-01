@@ -58,7 +58,8 @@
           moonlet-libsql = mkPlugin { name = "libsql"; };
           moonlet-llm = mkPlugin { name = "llm"; };
           moonlet-normalize = mkPlugin { name = "normalize"; };
-          moonlet-packages = mkPlugin { name = "packages"; };
+          moonlet-ecosystems = mkPlugin { name = "ecosystems"; };
+          moonlet-package-index = mkPlugin { name = "package-index"; };
           moonlet-sessions = mkPlugin { name = "sessions"; };
           moonlet-tools = mkPlugin { name = "tools"; };
         };
