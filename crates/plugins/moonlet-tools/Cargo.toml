@@ -12,5 +12,5 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 mlua = { version = "0.10", features = ["luajit", "vendored"], default-features = false }
 serde_json = "1"
-normalize-tools = { git = "https://github.com/rhi-zone/normalize" }
+normalize-tools = "0.1.0"
 moonlet-lua = { path = "../../moonlet-lua" }
