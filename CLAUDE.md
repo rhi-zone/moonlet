@@ -4,17 +4,18 @@ Behavioral rules for Claude Code in the moonlet repository.
 
 ## Project Overview
 
-moonlet is an agentic AI framework spun out from moss. It provides:
+moonlet is a capability-based Lua runtime with a plugin system. It provides:
+- Lua runtime with plugin support (C ABI, dynamically loaded)
+- Capability-based security (opaque Rust-backed userdata)
 - Multi-provider LLM client (via rig-core)
 - SQLite-backed memory store
-- Lua runtime with plugin support
 - Agent scripts for autonomous task execution
 
-**Key distinction:**
-- **moonlet** = agency/execution (LLM calls, memory, running agents)
-- **moss** = intelligence (code analysis, session parsing, understanding)
+**Key distinctions:**
+- **moonlet** = runtime + capabilities (Lua execution, plugin loading, capability-based security)
+- **nanites** = orchestration substrate (task graphs as inspectable/serializable/cacheable data)
 
-The projects are intentionally not hard-linked. Moss extends moonlet via dynamically loaded C ABI plugins.
+Moonlet and nanites are orthogonal: moonlet controls what you're allowed to do (capabilities), nanites describes what work needs doing (tasks as data). They compose — moonlet scripts can construct nanites task graphs, and nanites can spawn moonlet-backed executors for Lua tasks. Neither subsumes the other.
 
 ## Architecture
 
@@ -27,7 +28,7 @@ crates/
     ├── moonlet-llm/      # Multi-provider LLM client
     ├── moonlet-embed/    # Multi-provider embedding generation
     ├── moonlet-libsql/   # LibSQL/SQLite with vector support
-    ├── moonlet-moss/     # Code intelligence (view, search, analyze, edit)
+    ├── moonlet-normalize/     # Code intelligence (view, search, analyze, edit)
     ├── moonlet-sessions/ # AI session parsing
     ├── moonlet-tools/    # Dev tools (linters, formatters, test runners)
     ├── moonlet-ecosystems/ # Package ecosystem queries
@@ -71,7 +72,7 @@ local content = file:read("*a")
 - **moonlet-llm**: `llm.capability({providers, models?})` returns capability with `:providers()`, `:provider_info(name)`, `:complete(provider, model?, system?, prompt)`, `:chat(provider, model?, system?, message, history?)`, `:start_chat(...)` (async)
 - **moonlet-embed**: `embed.capability({providers, models?})` returns capability with `:providers()`, `:provider_info(name)`, `:generate(provider, model?, texts)`, `:start_generate(...)` (async)
 - **moonlet-libsql**: `libsql.capability({path?, allow_memory?})` returns capability with `:open(path)`, `:open_memory()`, `:vector32(array)`, `:vector64(array)`; Connection with `:execute()`, `:query()`, `:close()`
-- **moonlet-moss**: `moss.capability({root, mode})` returns capability with `:view()`, `:search()`, `:complexity()`, `:security()`, `:docs()`, `:files()`, `:duplicates()`, `:hotspots()`, `:stale_docs()`, `:check_refs()`, `:ast()`, `:query()`, `:trace()`, `:callers()`, `:callees()`, `:find()`, `:replace()`, etc.
+- **moonlet-normalize**: `moss.capability({root, mode})` returns capability with `:view()`, `:search()`, `:complexity()`, `:security()`, `:docs()`, `:files()`, `:duplicates()`, `:hotspots()`, `:stale_docs()`, `:check_refs()`, `:ast()`, `:query()`, `:trace()`, `:callers()`, `:callees()`, `:find()`, `:replace()`, etc.
 - **moonlet-tools**: `tools.capability({root})` returns capability with `:run()`, `:fix()`, `:test_run()`, etc.
 - **moonlet-ecosystems**: `ecosystems.capability({root})` returns capability with `:detect()`, `:query()`, `:dependencies()`, `:tree()`, `:audit()`
 - **moonlet-package-index**: `package_index.list()`, `package_index.fetch(index, package)` for registry lookups
