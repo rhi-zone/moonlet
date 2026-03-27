@@ -17,11 +17,11 @@ Iris needs these capabilities for agent-authored insights:
   - Native vector similarity via `vector_distance_cos()`, `vector_top_k()`
   - DiskANN indexes for fast KNN queries
 
-- [x] `moonlet-moss-sessions` - Session parsing integration
-  - Wraps moss-sessions for Lua access
+- [x] `moonlet-sessions` - Session parsing integration
+  - Wraps normalize-sessions for Lua access
   - API: `sessions.parse(path)` -> session data, `sessions.list()`, `sessions.formats()`, `sessions.detect(path)`
-  - Formats: Claude Code, Gemini CLI, Codex, Moss Agent
-  - Analysis is done in Lua (not Rust) - see `moss/docs/design/sessions-refactor.md`
+  - Formats: Claude Code, Gemini CLI, Codex
+  - Analysis is done in Lua (not Rust)
 
 ## CLI
 
@@ -41,6 +41,13 @@ Iris needs these capabilities for agent-authored insights:
 
 - [x] `moonlet-libsql` - Direct libsql/SQLite access from Lua (with vector support)
 - [ ] `moonlet-reed` - S-expression parsing/codegen (deferred: unclear value with single frontend/backend)
+- [ ] `moonlet-nanites` - Nanites orchestration substrate (construct/inspect/run task graphs from Lua)
+- [ ] `moonlet-unshape` - Unshape media generation (node graph construction/evaluation from Lua)
+- [ ] `moonlet-tiltshift` - Tiltshift binary structure extraction
+- [ ] `moonlet-paraphase` - Paraphase format conversion routing
+- [ ] `moonlet-rescribe` - Rescribe document conversion
+- [ ] `moonlet-gels` - Gels grammar inference
+- [ ] `moonlet-wick` - Wick expression evaluation
 
 ## Distribution
 
@@ -49,7 +56,7 @@ Iris needs these capabilities for agent-authored insights:
   - [x] Add `moonlet-full` package that depends on all integrations
   - [ ] Consider: config attrset to select which modules to include in a custom build
 
-## moonlet-moss integration
+## moonlet-normalize integration
 
 ### Implemented
 
@@ -68,4 +75,4 @@ Iris needs these capabilities for agent-authored insights:
 
 ### Future considerations
 
-- Batch edit support (`moss.edit.batch()`) - moss has BatchEdit for atomic multi-file edits
+- Batch edit support (`normalize.edit.batch()`) - normalize has BatchEdit for atomic multi-file edits
