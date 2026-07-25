@@ -919,16 +919,15 @@ unsafe extern "C-unwind" fn cap_duplicates(L: *mut lua_State) -> c_int {
             };
 
         // Run duplicate detection (runs cmd which prints but returns result)
-        let result =
-            normalize::commands::analyze::duplicates::cmd_duplicate_functions_with_count(
-                &cap.root,
-                elide_identifiers,
-                elide_literals,
-                false, // show_source
-                min_lines,
-                false, // json (we capture the count)
-                None,  // filter
-            );
+        let result = normalize::commands::analyze::duplicates::cmd_duplicate_functions_with_count(
+            &cap.root,
+            elide_identifiers,
+            elide_literals,
+            false, // show_source
+            min_lines,
+            false, // json (we capture the count)
+            None,  // filter
+        );
 
         ffi::lua_createtable(L, 0, 2);
 
@@ -958,8 +957,7 @@ unsafe extern "C-unwind" fn cap_hotspots(L: *mut lua_State) -> c_int {
 
         // Run hotspots analysis (this prints to stdout, we just capture exit code)
         // For proper data capture, we'd need to refactor normalize to return structured data
-        let exit_code =
-            normalize::commands::analyze::hotspots::cmd_hotspots(&cap.root, &[], false);
+        let exit_code = normalize::commands::analyze::hotspots::cmd_hotspots(&cap.root, &[], false);
 
         ffi::lua_createtable(L, 0, 1);
         ffi::lua_pushinteger(L, exit_code as ffi::lua_Integer);
@@ -976,8 +974,7 @@ unsafe extern "C-unwind" fn cap_stale_docs(L: *mut lua_State) -> c_int {
             return push_error(L, "invalid capability");
         };
 
-        let exit_code =
-            normalize::commands::analyze::stale_docs::cmd_stale_docs(&cap.root, false);
+        let exit_code = normalize::commands::analyze::stale_docs::cmd_stale_docs(&cap.root, false);
 
         ffi::lua_createtable(L, 0, 1);
         ffi::lua_pushinteger(L, exit_code as ffi::lua_Integer);
@@ -994,8 +991,7 @@ unsafe extern "C-unwind" fn cap_check_refs(L: *mut lua_State) -> c_int {
             return push_error(L, "invalid capability");
         };
 
-        let exit_code =
-            normalize::commands::analyze::check_refs::cmd_check_refs(&cap.root, false);
+        let exit_code = normalize::commands::analyze::check_refs::cmd_check_refs(&cap.root, false);
 
         ffi::lua_createtable(L, 0, 1);
         ffi::lua_pushinteger(L, exit_code as ffi::lua_Integer);
@@ -1048,8 +1044,7 @@ unsafe extern "C-unwind" fn cap_ast(L: *mut lua_State) -> c_int {
         };
 
         // Run AST command (prints to stdout)
-        let exit_code =
-            normalize::commands::analyze::ast::cmd_ast(&full_path, at_line, sexp, json);
+        let exit_code = normalize::commands::analyze::ast::cmd_ast(&full_path, at_line, sexp, json);
 
         ffi::lua_createtable(L, 0, 1);
         ffi::lua_pushinteger(L, exit_code as ffi::lua_Integer);
