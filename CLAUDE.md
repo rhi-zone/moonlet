@@ -99,6 +99,29 @@ cargo clippy       # Lint
 - `MOONLET_INSECURE_SSL` - Bypass SSL verification (for local proxies)
 - `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, etc. - Provider API keys
 
+## Core Rule
+
+**Note things down immediately:**
+- Bugs/issues → fix or add to TODO.md
+- Design decisions → docs/ or code comments
+- Future work → TODO.md
+- Key insights → this file
+
+**Triggers:** User corrects you, 2+ failed attempts, "aha" moment, framework quirk discovered → document before proceeding.
+
+**Conversation is not memory.** Anything said in chat evaporates at session end. If it implies future behavior change, write it to CLAUDE.md immediately — or it will not happen.
+
+**Warning — these phrases mean something needs to be written down right now:**
+- "I won't do X again" / "I'll remember to..." / "I've learned that..."
+- "Next time I'll..." / "From now on I'll..."
+- Any acknowledgement of a recurring error without a corresponding CLAUDE.md edit
+
+**When the user corrects you:** Ask what rule would have prevented this, and write it before proceeding. **"The rule exists, I just didn't follow it" is never the diagnosis** — a rule that doesn't prevent the failure it describes is incomplete; fix the rule, not your behavior.
+
+**Something unexpected is a signal, not noise.** Surprising output, anomalous numbers, files containing what they shouldn't — stop and ask why before continuing. Don't accept anomalies and move on.
+
+**Do the work properly.** When asked to analyze X, actually read X - don't synthesize from conversation.
+
 ## Behavioral Patterns
 
 From ecosystem-wide session analysis:
@@ -129,8 +152,10 @@ From ecosystem-wide session analysis:
 ## Negative Constraints
 
 Do not:
+- Use Claude Code's auto-memory system (`~/.claude/projects/.*./memory/`) — it is unversioned, invisible to the user, and can't be diffed or backed up. Write behavioral changes directly to CLAUDE.md instead
 - Announce actions ("I will now...") - just do them
 - Leave work uncommitted
+- Use interactive git commands (`git add -p`, `git add -i`, `git rebase -i`) — these block on stdin and hang in non-interactive shells; stage files by name instead
 - Use path dependencies in Cargo.toml - causes clippy to stash changes across repos
 - Use `--no-verify` - fix the issue or fix the hook
 - Assume tools are missing - check if `nix develop` is available for the right environment
@@ -139,19 +164,47 @@ Do not:
 
 **Batch cargo commands** to minimize round-trips:
 ```bash
-cargo clippy --all-targets --all-features -- -D warnings && cargo test
+cargo clippy --all-targets --all-features -- -D warnings && cargo test -q
 ```
 After editing multiple files, run the full check once — not after each edit. Formatting is handled automatically by the pre-commit hook (`cargo fmt`).
+
+**Prefer `cargo test -q`** over `cargo test` — quiet mode only prints failures, significantly reducing output noise and context usage.
 
 **When making the same change across multiple crates**, edit all files first, then build once.
 
 **Minimize file churn.** When editing a file, read it once, plan all changes, and apply them in one pass. Avoid read-edit-build-fail-read-fix cycles by thinking through the complete change before starting.
+
+**Always commit completed work.** After tests pass, commit immediately — don't wait to be asked. When a plan has multiple phases, commit after each phase passes. Do not accumulate changes across phases. Uncommitted work is lost work.
 
 **Use `normalize view` for structural exploration:**
 ```bash
 ~/git/rhizone/normalize/target/debug/normalize view <file>    # outline with line numbers
 ~/git/rhizone/normalize/target/debug/normalize view <dir>     # directory structure
 ```
+
+## Context Management
+
+**Use subagents to protect the main context window.** For broad exploration or mechanical multi-file work, delegate to an Explore or general-purpose subagent rather than running searches inline. The subagent returns a distilled summary; raw tool output stays out of the main context.
+
+Rules of thumb:
+- Research tasks (investigating a question, surveying patterns) → subagent; don't pollute main context with exploratory noise
+- Searching >5 files or running >3 rounds of grep/read → use a subagent
+- Codebase-wide analysis (architecture, patterns, cross-file survey) → always subagent
+- Mechanical work across many files (applying the same change everywhere) → parallel subagents
+- Single targeted lookup (one file, one symbol) → inline is fine
+
+## Session Handoff
+
+Use plan mode as a handoff mechanism when:
+- A task is fully complete (committed, pushed, docs updated)
+- The session has drifted from its original purpose
+- Context has accumulated enough that a fresh start would help
+
+**For handoffs:** enter plan mode, write a plan containing only: next tasks, blocked/pending items, and what was done this session (only if it directly affects what comes next). Nothing else — no commands, no build steps, no context summaries. Those belong in CLAUDE.md or TODO.md. The next session reads both fresh. **Do NOT investigate first** — the session is context-heavy and about to be discarded.
+
+**For mid-session planning** on a different topic: investigating inside plan mode is fine — context isn't being thrown away.
+
+**TODO.md is the lossless record.** Flush any new items to TODO.md before the handoff. Anything worth preserving belongs in CLAUDE.md or TODO.md — not in memory files.
 
 ## Commit Convention
 
