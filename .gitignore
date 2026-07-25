@@ -24,4 +24,3 @@ docs/.vitepress/dist/
 !.normalize/large-files-allow
 !.normalize/memory/
 .normalize/
-.moss/
