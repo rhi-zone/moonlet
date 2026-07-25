@@ -8,10 +8,13 @@ export default withMermaid(
 
     base: '/moonlet/',
 
+    srcExclude: ['**/CLAUDE.md'],
+
     themeConfig: {
       nav: [
         { text: 'Guide', link: '/introduction' },
         { text: 'API', link: '/api' },
+        { text: 'rhi', link: 'https://docs.rhi.zone/' },
       ],
 
       sidebar: [

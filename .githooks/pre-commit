@@ -1,13 +1,17 @@
 #!/usr/bin/env bash
 set -e
 
+staged=$(git diff --cached --name-only --diff-filter=ACMR)
+
 # Run in nix environment if available
 if command -v nix &> /dev/null && [ -f flake.nix ]; then
     echo "Running pre-commit checks in nix environment..."
     exec nix develop -c bash -c "
         echo 'Running cargo fmt check...'
         cargo fmt --all
-git add -u
+        if [ -n '$staged' ]; then
+          echo '$staged' | xargs git add
+        fi
         echo 'Running cargo clippy...'
         cargo clippy --all-targets --all-features -- -D warnings
         echo 'Pre-commit checks passed!'
@@ -15,7 +19,9 @@ git add -u
 else
     echo "Running cargo fmt..."
     cargo fmt --all
-git add -u
+    if [ -n "$staged" ]; then
+      echo "$staged" | xargs git add
+    fi
     echo "Running cargo clippy..."
     cargo clippy --all-targets --all-features -- -D warnings
     echo "Pre-commit checks passed!"
